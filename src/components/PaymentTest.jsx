@@ -1,4 +1,5 @@
 import React from "react";
+import { generateInvoicePDF } from '../utils/invoiceUtils';
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
@@ -7,6 +8,7 @@ const PaymentTest = ({ orderId, setCurrentPage, onPaymentSuccess }) => {
   const [loading, setLoading] = React.useState(true);
   const [processing, setProcessing] = React.useState(false);
   const [method, setMethod] = React.useState('card');
+  const [paidOrder, setPaidOrder] = React.useState(null);
 
   React.useEffect(() => {
     if (!orderId) return setLoading(false);
@@ -29,6 +31,20 @@ const PaymentTest = ({ orderId, setCurrentPage, onPaymentSuccess }) => {
       <div className="mt-4">
         <button onClick={() => setCurrentPage?.('home')} className="px-4 py-2 bg-green-600 rounded">Go Home</button>
       </div>
+      {paidOrder && (
+        <div className="max-w-3xl mx-auto mt-6">
+          <div className="bg-green-900/10 p-4 rounded border border-green-700 flex items-center justify-between">
+            <div>
+              <div className="text-green-300 font-bold">Payment Confirmed</div>
+              <div className="text-sm text-gray-400">Order ID: {paidOrder._id}</div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => generateInvoicePDF(paidOrder)} className="px-3 py-2 bg-green-600 rounded text-white">⬇️ Download Invoice</button>
+              <button onClick={() => { setCurrentPage?.('home'); }} className="px-3 py-2 border border-green-700 rounded text-white">Finish</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -92,9 +108,9 @@ const PaymentTest = ({ orderId, setCurrentPage, onPaymentSuccess }) => {
                     alert(confirmData.message || 'Payment confirmation failed');
                     return;
                   }
-                  alert('Payment successful. Order updated.');
+                  // show invoice/download option before leaving
+                  setPaidOrder(confirmData.order || { _id: confirmData.orderId || orderId });
                   onPaymentSuccess?.(confirmData.orderId || orderId);
-                  setCurrentPage?.('home');
                 } catch (err) {
                   console.error('Mock payment error', err);
                   alert('Mock payment error');

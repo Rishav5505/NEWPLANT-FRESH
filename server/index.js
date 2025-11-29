@@ -115,10 +115,46 @@ async function start() {
       }
       // other methods start as pending payment and pending processing
 
-      const order = new Order({ user: user._id, items, subtotal, tax, shipping, total, paymentMethod: pm, paymentStatus, status });
+      // extract delivery details from request
+      const { deliveryName, deliveryPhone, deliveryEmail, deliveryAddress, deliveryLocation } = req.body;
+
+      const order = new Order({
+        user: user._id,
+        items,
+        subtotal,
+        tax,
+        shipping,
+        total,
+        paymentMethod: pm,
+        paymentStatus,
+        status,
+        deliveryName: deliveryName || '',
+        deliveryPhone: deliveryPhone || '',
+        deliveryEmail: deliveryEmail || '',
+        deliveryAddress: deliveryAddress || '',
+        deliveryLocation: deliveryLocation || ''
+      });
       await order.save();
 
       return res.json({ success: true, orderId: order._id, order });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // Get user's own orders (protected)
+  app.get('/api/my-orders', async (req, res) => {
+    try {
+      const auth = req.headers.authorization;
+      if (!auth) return res.status(401).json({ success: false, message: 'Missing token' });
+      const token = auth.split(' ')[1];
+      const data = jwt.verify(token, JWT_SECRET);
+      const user = await User.findById(data.id);
+      if (!user) return res.status(401).json({ success: false, message: 'Invalid token' });
+
+      const orders = await Order.find({ user: user._id }).sort({ createdAt: -1 }).limit(100);
+      return res.json({ success: true, orders });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ success: false, message: 'Server error' });

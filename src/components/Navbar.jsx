@@ -9,6 +9,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [user, setUser] = useState(() => {
     try {
       const raw = localStorage.getItem("auth_user");
@@ -71,15 +72,80 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
           </button>
 
           {user ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-300">Hi, <strong className="text-green-300">{user.name}</strong></span>
-              <button onClick={() => {
-                localStorage.removeItem("auth_token");
-                localStorage.removeItem("auth_user");
-                setUser(null);
-              }} className="px-3 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-semibold transition">Logout</button>
-              {user.role === 'admin' && (
-                <button onClick={() => setCurrentPage?.('admin')} className="ml-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold transition">Admin</button>
+            <div className="relative">
+              <button 
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 px-3 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg transition"
+              >
+                👤 {user.name}
+              </button>
+
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-[#0a1a12] border-2 border-green-700 rounded-lg shadow-lg z-50">
+                  <button 
+                    onClick={() => {
+                      setCurrentPage?.('myorders');
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-green-900/30 border-b border-green-800 text-gray-300 hover:text-green-300 transition"
+                  >
+                    📦 Your Orders
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      alert('Support coming soon!');
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-green-900/30 border-b border-green-800 text-gray-300 hover:text-green-300 transition"
+                  >
+                    🆘 Need Help
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      setCurrentPage?.('wishlist');
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-green-900/30 border-b border-green-800 text-gray-300 hover:text-green-300 transition"
+                  >
+                    ❤️ Your Wishlist
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      setCurrentPage?.('wallet');
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-green-900/30 border-b border-green-800 text-gray-300 hover:text-green-300 transition"
+                  >
+                    💳 Wallet
+                  </button>
+
+                  {user.role === 'admin' && (
+                    <button 
+                      onClick={() => {
+                        setCurrentPage?.('admin');
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-indigo-900/30 border-b border-indigo-800 text-gray-300 hover:text-indigo-300 transition"
+                    >
+                      🛡️ Admin Dashboard
+                    </button>
+                  )}
+
+                  <button 
+                    onClick={() => {
+                      localStorage.removeItem("auth_token");
+                      localStorage.removeItem("auth_user");
+                      setUser(null);
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-red-900/30 text-gray-300 hover:text-red-300 transition"
+                  >
+                    🚪 Logout
+                  </button>
+                </div>
               )}
             </div>
           ) : (

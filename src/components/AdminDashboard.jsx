@@ -286,6 +286,33 @@ const AdminDashboard = ({ setCurrentPage }) => {
             </div>
           </div>
 
+          {/* Delivery Details Section */}
+          <div className="mb-6 pb-6 border-b border-green-800">
+            <h4 className="text-lg font-bold mb-4 text-green-300">📍 Delivery Details</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-green-900/10 p-3 rounded border border-green-800/30">
+                <div className="text-sm text-gray-400">Full Name</div>
+                <div className="font-semibold text-white">{selected.deliveryName || '—'}</div>
+              </div>
+              <div className="bg-green-900/10 p-3 rounded border border-green-800/30">
+                <div className="text-sm text-gray-400">Phone Number</div>
+                <div className="font-semibold text-white">{selected.deliveryPhone || '—'}</div>
+              </div>
+              <div className="bg-green-900/10 p-3 rounded border border-green-800/30">
+                <div className="text-sm text-gray-400">Email Address</div>
+                <div className="font-semibold text-white truncate">{selected.deliveryEmail || '—'}</div>
+              </div>
+              <div className="bg-green-900/10 p-3 rounded border border-green-800/30">
+                <div className="text-sm text-gray-400">Location / City</div>
+                <div className="font-semibold text-white">{selected.deliveryLocation || '—'}</div>
+              </div>
+            </div>
+            <div className="bg-green-900/10 p-3 rounded border border-green-800/30 mt-4">
+              <div className="text-sm text-gray-400">Delivery Address</div>
+              <div className="font-semibold text-white mt-2 whitespace-pre-wrap break-words">{selected.deliveryAddress || '—'}</div>
+            </div>
+          </div>
+
           <div className="mb-6">
             <h4 className="text-lg font-bold mb-3 text-green-300">Items</h4>
             {selected?.items?.map(it => (

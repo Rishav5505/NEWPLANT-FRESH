@@ -17,7 +17,12 @@ const OrderSchema = new mongoose.Schema({
   total: { type: Number, required: true },
   paymentMethod: { type: String, enum: ['card','cod','upi','netbanking'], default: 'cod' },
   paymentStatus: { type: String, enum: ['pending','paid','failed'], default: 'pending' },
-  status: { type: String, default: 'pending' }
+  status: { type: String, default: 'pending' },
+  deliveryName: { type: String },
+  deliveryPhone: { type: String },
+  deliveryEmail: { type: String },
+  deliveryAddress: { type: String },
+  deliveryLocation: { type: String }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);

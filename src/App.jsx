@@ -22,6 +22,9 @@ import OutdoorPlants from "./components/OutdoorPlants";
 import PlantersAndPots from "./components/PlantersAndPots";
 import PlantCareKits from "./components/PlantCareKits";
 import CareGuides from "./components/CareGuides";
+import MyOrders from "./components/MyOrders";
+import Wishlist from "./components/Wishlist";
+import Wallet from "./components/Wallet";
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState("home");
@@ -128,7 +131,12 @@ const App = () => {
       )}
       {currentPage === "checkout" && (
         <>
-          <Checkout />
+          <Checkout 
+            cartItems={cartItems}
+            setCurrentPage={setCurrentPage}
+            setPaymentOrderId={setPaymentOrderId}
+            removeItem={removeItem}
+          />
           <Footer />
         </>
       )}
@@ -175,7 +183,28 @@ const App = () => {
         </>
       )}
 
-      {currentPage !== "home" && currentPage !== "contact" && currentPage !== "shop" && currentPage !== "about" && currentPage !== "checkout" && currentPage !== "indoreplants" && currentPage !== "floweringplants" && currentPage !== "outdoorplants" && currentPage !== "plantersandpots" && currentPage !== "plantcarekits" && currentPage !== "careguides" && (
+      {currentPage === "myorders" && (
+        <>
+          <MyOrders setCurrentPage={setCurrentPage} />
+          <Footer />
+        </>
+      )}
+
+      {currentPage === "wishlist" && (
+        <>
+          <Wishlist setCurrentPage={setCurrentPage} />
+          <Footer />
+        </>
+      )}
+
+      {currentPage === "wallet" && (
+        <>
+          <Wallet setCurrentPage={setCurrentPage} />
+          <Footer />
+        </>
+      )}
+
+      {currentPage !== "home" && currentPage !== "contact" && currentPage !== "shop" && currentPage !== "about" && currentPage !== "checkout" && currentPage !== "indoreplants" && currentPage !== "floweringplants" && currentPage !== "outdoorplants" && currentPage !== "plantersandpots" && currentPage !== "plantcarekits" && currentPage !== "careguides" && currentPage !== "myorders" && currentPage !== "wishlist" && currentPage !== "wallet" && (
         <>
           <HeroSection setCurrentPage={setCurrentPage} />
           <TopSelling addToCart={addToCart} />
