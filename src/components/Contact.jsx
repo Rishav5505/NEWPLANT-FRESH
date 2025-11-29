@@ -19,8 +19,8 @@ const Contact = () => {
   };
 
   return (
-    <section className="min-h-screen px-8 py-20 bg-gradient-to-b from-green-950/10 to-transparent">
-      <div className="max-w-6xl mx-auto">
+    <section className="min-h-screen px-0 py-20 bg-gradient-to-b from-green-950/10 to-transparent">
+      <div className="max-w-full mx-auto px-8">
         {/* Header */}
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold mb-4">

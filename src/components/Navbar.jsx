@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+
+// Use Vite env variable (must be prefixed with VITE_) when building with Vite.
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
 const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
   const [showLogin, setShowLogin] = useState(false);
@@ -6,10 +9,39 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [user, setUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem("auth_user");
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    // keep user state in sync if localStorage changed elsewhere
+    const handler = () => {
+      try {
+        const raw = localStorage.getItem("auth_user");
+        setUser(raw ? JSON.parse(raw) : null);
+      } catch (e) {}
+    };
+    window.addEventListener("storage", handler);
+    // listen for global events to open login/signup from other components (e.g., Cart)
+    const openLogin = () => setShowLogin(true);
+    const openSignup = () => setShowSignup(true);
+    window.addEventListener('open-login', openLogin);
+    window.addEventListener('open-signup', openSignup);
+    return () => {
+      window.removeEventListener("storage", handler);
+      window.removeEventListener('open-login', openLogin);
+      window.removeEventListener('open-signup', openSignup);
+    };
+  }, []);
 
   return (
     <>
-      <nav className="w-full py-4 px-8 flex items-center justify-between bg-[#0a1a12]/80 backdrop-blur-md shadow-lg border-b border-green-700 sticky top-0 z-50">
+      <nav className="w-full py-4 px-6 flex items-center justify-between bg-[#0a1a12]/80 backdrop-blur-md shadow-lg border-b border-green-700 sticky top-0 z-50">
         
         <h1 className="text-3xl font-bold text-green-400 flex items-center gap-2">
           🌿 Plants
@@ -38,19 +70,35 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
             )}
           </button>
 
-          <button
-            onClick={() => setShowLogin(true)}
-            className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold transition"
-          >
-            🔐 Login
-          </button>
+          {user ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-300">Hi, <strong className="text-green-300">{user.name}</strong></span>
+              <button onClick={() => {
+                localStorage.removeItem("auth_token");
+                localStorage.removeItem("auth_user");
+                setUser(null);
+              }} className="px-3 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-semibold transition">Logout</button>
+              {user.role === 'admin' && (
+                <button onClick={() => setCurrentPage?.('admin')} className="ml-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold transition">Admin</button>
+              )}
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowLogin(true)}
+                className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold transition"
+              >
+                🔐 Login
+              </button>
 
-          <button
-            onClick={() => setShowSignup(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition"
-          >
-            📝 Sign Up
-          </button>
+              <button
+                onClick={() => setShowSignup(true)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition"
+              >
+                📝 Sign Up
+              </button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -82,7 +130,25 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
                 className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition"
               />
 
-              <button className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition transform hover:scale-105">
+              <button onClick={async () => {
+                try {
+                  const resp = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                  });
+                  const data = await resp.json();
+                  if (!data.success) return alert(data.message || 'Login failed');
+                  localStorage.setItem('auth_token', data.token);
+                  localStorage.setItem('auth_user', JSON.stringify(data.user));
+                  setUser(data.user);
+                  setShowLogin(false);
+                  setEmail(''); setPassword('');
+                } catch (err) {
+                  console.error(err);
+                  alert('Login error');
+                }
+              }} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition transform hover:scale-105">
                 🔓 Login
               </button>
 
@@ -139,7 +205,25 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
                 className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition"
               />
 
-              <button className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition transform hover:scale-105">
+              <button onClick={async () => {
+                try {
+                  const resp = await fetch(`${API_BASE}/api/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password }),
+                  });
+                  const data = await resp.json();
+                  if (!data.success) return alert(data.message || 'Signup failed');
+                  localStorage.setItem('auth_token', data.token);
+                  localStorage.setItem('auth_user', JSON.stringify(data.user));
+                  setUser(data.user);
+                  setShowSignup(false);
+                  setName(''); setEmail(''); setPassword('');
+                } catch (err) {
+                  console.error(err);
+                  alert('Signup error');
+                }
+              }} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition transform hover:scale-105">
                 ✓ Create Account
               </button>
 

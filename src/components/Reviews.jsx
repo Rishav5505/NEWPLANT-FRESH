@@ -37,8 +37,8 @@ const reviews = [
 
 const Reviews = () => {
   return (
-    <section className="px-8 py-20 bg-gradient-to-b from-green-950/10 to-transparent">
-      <div className="max-w-6xl mx-auto">
+    <section className="px-0 py-20 bg-gradient-to-b from-green-950/10 to-transparent">
+      <div className="max-w-full mx-auto px-8">
         <h2 className="text-center text-4xl md:text-5xl font-bold mb-4">
           <span className="text-green-400">💬 Customer</span> Reviews
         </h2>

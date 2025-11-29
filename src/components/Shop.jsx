@@ -1,4 +1,5 @@
 import React from "react";
+import { formatINRFromUSD } from "../utils/priceUtils";
 
 const products = [
   { id: 1, name: "Calathea", price: 35.99, emoji: "🌿", desc: "Patterned, low-light plant" },
@@ -11,8 +12,8 @@ const products = [
 
 const Shop = ({ addToCart }) => {
   return (
-    <section className="min-h-screen px-8 py-16 bg-gradient-to-b from-transparent to-green-950/10">
-      <div className="max-w-6xl mx-auto">
+    <section className="min-h-screen px-0 py-16 bg-gradient-to-b from-transparent to-green-950/10">
+      <div className="max-w-full mx-auto px-8">
         <h2 className="text-4xl font-bold mb-6 text-center">Shop All Plants</h2>
         <p className="text-center text-gray-300 mb-12">Browse our full collection. Click a product to view details.</p>
 
@@ -23,7 +24,7 @@ const Shop = ({ addToCart }) => {
               <h3 className="text-2xl font-bold mb-2">{p.name}</h3>
               <p className="text-gray-300 mb-4">{p.desc}</p>
                 <div className="flex items-center justify-between">
-                <p className="text-green-400 font-bold text-xl">${p.price}</p>
+                <p className="text-green-400 font-bold text-xl">{formatINRFromUSD(p.price)}</p>
                 <button
                   onClick={() => addToCart({ id: p.id, name: p.name, price: p.price, emoji: p.emoji })}
                   className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg"

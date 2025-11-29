@@ -2,7 +2,7 @@ import React from "react";
 
 const Checkout = () => {
   return (
-    <section className="min-h-screen px-8 py-20 bg-gradient-to-b from-transparent to-green-950/10">
+    <section className="min-h-screen px-0 py-20 bg-gradient-to-b from-transparent to-green-950/10">
       <div className="max-w-3xl mx-auto bg-gradient-to-br from-green-900/20 to-black/40 border border-green-700 p-8 rounded-3xl">
         <h2 className="text-3xl font-bold mb-4">Checkout</h2>
         <p className="text-gray-300 mb-6">This is a checkout skeleton. Integrate payment & shipping logic here.</p>

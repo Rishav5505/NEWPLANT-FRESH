@@ -2,8 +2,8 @@ import React from "react";
 
 const CTA = () => {
   return (
-    <section className="px-8 py-20 bg-gradient-to-r from-green-900/40 to-emerald-900/40 border-y border-green-700">
-      <div className="max-w-4xl mx-auto text-center">
+    <section className="px-0 py-20 bg-gradient-to-r from-green-900/40 to-emerald-900/40 border-y border-green-700">
+      <div className="max-w-full mx-auto px-8 text-center">
         <h2 className="text-4xl md:text-5xl font-bold mb-6">
           Ready to Green Your Space? 🌱
         </h2>

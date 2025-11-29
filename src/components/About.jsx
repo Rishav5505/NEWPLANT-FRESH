@@ -2,7 +2,7 @@ import React from "react";
 
 const About = () => {
   return (
-    <section className="min-h-screen px-8 py-20 bg-gradient-to-b from-green-950/10 to-transparent">
+    <section className="min-h-screen px-0 py-20 bg-gradient-to-b from-green-950/10 to-transparent">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-5xl font-bold mb-6 text-center"><span className="text-green-400">About</span> Us</h1>
         <p className="text-gray-300 text-lg leading-relaxed mb-6">We are a small team of plant lovers dedicated to bringing healthy, beautiful plants to your home. Every plant is inspected and shipped with care. We provide easy care instructions and customer support to help your plants thrive.</p>

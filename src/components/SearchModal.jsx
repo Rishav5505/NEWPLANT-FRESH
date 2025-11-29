@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { formatINRFromUSD } from "../utils/priceUtils";
 
 const plants = [
   "Calathea Plant",
@@ -53,7 +54,7 @@ const SearchModal = () => {
                       <span className="text-2xl">🌿</span>
                       <div>
                         <p className="font-bold">{plant}</p>
-                        <p className="text-sm text-gray-400">$35.99 - $65.99</p>
+                        <p className="text-sm text-gray-400">{formatINRFromUSD(35.99)} - {formatINRFromUSD(65.99)}</p>
                       </div>
                     </button>
                   ))

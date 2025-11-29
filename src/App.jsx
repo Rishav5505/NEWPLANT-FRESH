@@ -7,6 +7,8 @@ import Features from "./components/Features";
 import Gallery from "./components/Gallery";
 import CTA from "./components/CTA";
 import Footer from "./components/Footer";
+import PaymentTest from "./components/PaymentTest";
+import AdminDashboard from "./components/AdminDashboard";
 import Contact from "./components/Contact";
 import Menu from "./components/Menu";
 import Notifications from "./components/Notifications";
@@ -14,11 +16,18 @@ import Cart from "./components/Cart";
 import Shop from "./components/Shop";
 import About from "./components/About";
 import Checkout from "./components/Checkout";
+import IndorePlants from "./components/IndorePlants";
+import FloweringPlants from "./components/FloweringPlants";
+import OutdoorPlants from "./components/OutdoorPlants";
+import PlantersAndPots from "./components/PlantersAndPots";
+import PlantCareKits from "./components/PlantCareKits";
+import CareGuides from "./components/CareGuides";
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState("home");
   const [showCart, setShowCart] = useState(false);
   const [cartItems, setCartItems] = useState([]);
+  const [paymentOrderId, setPaymentOrderId] = useState(null);
 
   const addToCart = (product) => {
     setCartItems((prev) => {
@@ -64,13 +73,31 @@ const App = () => {
         updateQuantity={updateQuantity}
         removeItem={removeItem}
         setCurrentPage={setCurrentPage}
+        setPaymentOrderId={setPaymentOrderId}
       />
+
+      {currentPage === 'payment' && (
+        <>
+          <PaymentTest orderId={paymentOrderId} setCurrentPage={setCurrentPage} onPaymentSuccess={() => {
+            // clear paymentOrderId and empty cart after successful payment
+            setPaymentOrderId(null);
+            setCartItems([]);
+          }} />
+          <Footer />
+        </>
+      )}
+      {currentPage === 'admin' && (
+        <>
+          <AdminDashboard setCurrentPage={setCurrentPage} />
+          <Footer />
+        </>
+      )}
       
       {currentPage === "home" && (
         <>
-          <HeroSection />
+          <HeroSection setCurrentPage={setCurrentPage} />
           <TopSelling addToCart={addToCart} />
-          <Gallery />
+          <Gallery setCurrentPage={setCurrentPage} />
           <Features />
           <Reviews />
           <CTA />
@@ -80,7 +107,8 @@ const App = () => {
 
       {currentPage === "shop" && (
         <>
-          <Shop addToCart={addToCart} />
+          <Gallery setCurrentPage={setCurrentPage} />
+          <Features />
           <Footer />
         </>
       )}
@@ -104,11 +132,54 @@ const App = () => {
           <Footer />
         </>
       )}
-      {currentPage !== "home" && currentPage !== "contact" && currentPage !== "shop" && currentPage !== "about" && (
+
+      {currentPage === "indoreplants" && (
         <>
-          <HeroSection />
+          <IndorePlants addToCart={addToCart} />
+          <Footer />
+        </>
+      )}
+
+      {currentPage === "floweringplants" && (
+        <>
+          <FloweringPlants addToCart={addToCart} />
+          <Footer />
+        </>
+      )}
+
+      {currentPage === "outdoorplants" && (
+        <>
+          <OutdoorPlants addToCart={addToCart} />
+          <Footer />
+        </>
+      )}
+
+      {currentPage === "plantersandpots" && (
+        <>
+          <PlantersAndPots addToCart={addToCart} />
+          <Footer />
+        </>
+      )}
+
+      {currentPage === "plantcarekits" && (
+        <>
+          <PlantCareKits addToCart={addToCart} />
+          <Footer />
+        </>
+      )}
+
+      {currentPage === "careguides" && (
+        <>
+          <CareGuides />
+          <Footer />
+        </>
+      )}
+
+      {currentPage !== "home" && currentPage !== "contact" && currentPage !== "shop" && currentPage !== "about" && currentPage !== "checkout" && currentPage !== "indoreplants" && currentPage !== "floweringplants" && currentPage !== "outdoorplants" && currentPage !== "plantersandpots" && currentPage !== "plantcarekits" && currentPage !== "careguides" && (
+        <>
+          <HeroSection setCurrentPage={setCurrentPage} />
           <TopSelling addToCart={addToCart} />
-          <Gallery />
+          <Gallery setCurrentPage={setCurrentPage} />
           <Features />
           <Reviews />
           <CTA />
