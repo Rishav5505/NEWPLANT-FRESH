@@ -6,9 +6,11 @@ const AdminDashboard = ({ setCurrentPage }) => {
   const [orders, setOrders] = React.useState([]);
   const [selected, setSelected] = React.useState(null);
   const [users, setUsers] = React.useState([]);
+  const [messages, setMessages] = React.useState([]);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [authError, setAuthError] = React.useState('');
+  const [selectedMessage, setSelectedMessage] = React.useState(null);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -28,6 +30,23 @@ const AdminDashboard = ({ setCurrentPage }) => {
       setAuthError(err.message || 'Failed to fetch orders');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMessages = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const resp = await fetch(`${API_BASE}/api/admin/messages`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await resp.json();
+      if (!data.success) {
+        setAuthError(data.message || 'Failed to fetch messages');
+      } else {
+        setMessages(data.messages || []);
+        setAuthError('');
+      }
+    } catch (err) {
+      console.error(err);
+      setAuthError(err.message || 'Failed to fetch messages');
     }
   };
 
@@ -67,7 +86,9 @@ const AdminDashboard = ({ setCurrentPage }) => {
   React.useEffect(() => {
     fetchOrders();
     fetchUsers();
+    fetchMessages();
   }, []);
+
 
   const loadOrder = async (id) => {
     try {
@@ -87,6 +108,44 @@ const AdminDashboard = ({ setCurrentPage }) => {
       console.error(err);
       setAuthError(err.message || 'Failed to load order');
     }
+  };
+
+  const loadMessage = async (id) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const resp = await fetch(`${API_BASE}/api/admin/messages/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await resp.json();
+      if (data.success) {
+        setSelectedMessage(data.message);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const markMessageRead = async (id, read) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const resp = await fetch(`${API_BASE}/api/admin/messages/${id}/mark-read`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ read })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        await fetchMessages();
+        if (selectedMessage && String(selectedMessage._id) === String(id)) setSelectedMessage(data.message);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const deleteMessage = async (id) => {
+    if (!confirm('Delete this message?')) return;
+    try {
+      const token = localStorage.getItem('auth_token');
+      const resp = await fetch(`${API_BASE}/api/admin/messages/${id}/delete`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const data = await resp.json();
+      if (data.success) {
+        await fetchMessages();
+        if (selectedMessage && String(selectedMessage._id) === String(id)) setSelectedMessage(null);
+      }
+    } catch (err) { console.error(err); }
   };
 
   const updateOrder = async (id, changes) => {
@@ -233,10 +292,25 @@ const AdminDashboard = ({ setCurrentPage }) => {
           </div>
         </div>
 
-        {/* Users List */}
+        {/* Right column: Messages + Users */}
         <div>
+          <h2 className="text-lg font-semibold mb-3">Messages ({messages.length})</h2>
+          <div className="bg-[#07110a] p-4 rounded border border-green-800 max-h-[35vh] overflow-auto space-y-2 mb-4">
+            {messages.length === 0 ? (
+              <div className="text-center text-gray-400 py-6">No messages</div>
+            ) : messages.map(m => (
+              <div key={m._id} className={`p-3 rounded cursor-pointer flex justify-between items-start ${m.read ? 'bg-green-900/5 border border-green-800/20' : 'bg-green-900/15 border border-green-700/40'}`} onClick={() => loadMessage(m._id)}>
+                <div>
+                  <div className="font-semibold text-green-300 truncate max-w-[12rem]">{m.name}</div>
+                  <div className="text-xs text-gray-400 truncate">{m.email || m.phone}</div>
+                </div>
+                <div className="text-xs text-gray-400">{new Date(m.createdAt).toLocaleDateString()}</div>
+              </div>
+            ))}
+          </div>
+
           <h2 className="text-lg font-semibold mb-3">Users ({users.length})</h2>
-          <div className="bg-[#07110a] p-4 rounded border border-green-800 max-h-[65vh] overflow-auto space-y-2">
+          <div className="bg-[#07110a] p-4 rounded border border-green-800 max-h-[30vh] overflow-auto space-y-2">
             {users.map(u => (
               <div key={u._id} className="p-3 bg-green-900/10 border border-green-700/30 rounded">
                 <div className="font-semibold text-green-300">{u.name}</div>
@@ -356,6 +430,34 @@ const AdminDashboard = ({ setCurrentPage }) => {
               <button onClick={() => updateOrder(selected._id, { paymentStatus: 'paid' })} className="px-3 py-2 bg-green-700 hover:bg-green-600 rounded text-sm">Mark as Paid</button>
             </div>
             <button onClick={() => setSelected(null)} className="px-4 py-2 border border-gray-600 rounded hover:bg-gray-900/50 text-sm">Close</button>
+          </div>
+        </div>
+      )}
+      {/* Message Detail Panel */}
+      {selectedMessage && (
+        <div className="mt-8 bg-[#07110a] p-6 rounded border-2 border-green-600 shadow-lg">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="text-2xl font-bold text-green-300">Message</h3>
+              <div className="text-sm text-gray-400 mt-1">From: {selectedMessage.name} — {selectedMessage.email || selectedMessage.phone}</div>
+            </div>
+            <button onClick={() => setSelectedMessage(null)} className="text-2xl text-gray-400 hover:text-white">✕</button>
+          </div>
+
+          <div className="mb-4">
+            <div className="text-sm text-gray-400">Received</div>
+            <div className="font-semibold text-white">{new Date(selectedMessage.createdAt).toLocaleString()}</div>
+          </div>
+
+          <div className="mb-6">
+            <div className="text-sm text-gray-400">Message</div>
+            <div className="mt-2 whitespace-pre-wrap text-white bg-green-900/10 p-3 rounded border border-green-800/30">{selectedMessage.message}</div>
+          </div>
+
+          <div className="flex gap-3">
+            <button onClick={() => markMessageRead(selectedMessage._id, !selectedMessage.read)} className="px-3 py-2 bg-yellow-600 hover:bg-yellow-500 rounded text-sm">{selectedMessage.read ? 'Mark Unread' : 'Mark Read'}</button>
+            <button onClick={() => deleteMessage(selectedMessage._id)} className="px-3 py-2 bg-red-700 hover:bg-red-600 rounded text-sm">Delete</button>
+            <button onClick={() => setSelectedMessage(null)} className="px-4 py-2 border border-gray-600 rounded hover:bg-gray-900/50 text-sm">Close</button>
           </div>
         </div>
       )}

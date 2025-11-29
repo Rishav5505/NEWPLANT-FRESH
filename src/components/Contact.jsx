@@ -1,5 +1,7 @@
 import React from "react";
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
+
 const Contact = () => {
   const [formData, setFormData] = React.useState({
     name: "",
@@ -7,15 +9,36 @@ const Contact = () => {
     phone: "",
     message: "",
   });
+  const [sending, setSending] = React.useState(false);
+  const [feedback, setFeedback] = React.useState('');
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert("Thank you for contacting us! We'll get back to you soon.");
-    setFormData({ name: "", email: "", phone: "", message: "" });
+    setFeedback('');
+    setSending(true);
+    try {
+      const resp = await fetch(`${API_BASE}/api/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setFeedback('Message sent — thank you!');
+        setFormData({ name: "", email: "", phone: "", message: "" });
+      } else {
+        setFeedback(data.message || 'Failed to send message');
+      }
+    } catch (err) {
+      console.error(err);
+      setFeedback('Network error — please try again later');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -90,10 +113,14 @@ const Contact = () => {
 
               <button
                 type="submit"
-                className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition transform hover:scale-105 text-lg"
+                disabled={sending}
+                className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition transform hover:scale-105 text-lg disabled:opacity-60"
               >
-                📤 Send Message
+                {sending ? 'Sending…' : '📤 Send Message'}
               </button>
+              {feedback && (
+                <div className="text-sm mt-2 text-gray-300">{feedback}</div>
+              )}
             </form>
           </div>
 
@@ -102,17 +129,15 @@ const Contact = () => {
             <div className="bg-gradient-to-br from-green-900/20 to-black/40 border border-green-700 p-8 rounded-3xl">
               <h3 className="text-2xl font-bold mb-4 text-green-400">📍 Our Address</h3>
               <p className="text-gray-300 text-lg">
-                123 Green Street<br />
-                Nature Valley, NV 12345<br />
-                United States
+                Gurgram Hariyana<br />
               </p>
             </div>
 
             <div className="bg-gradient-to-br from-green-900/20 to-black/40 border border-green-700 p-8 rounded-3xl">
               <h3 className="text-2xl font-bold mb-4 text-green-400">📞 Phone</h3>
               <p className="text-gray-300 text-lg">
-                <a href="tel:+15551234567" className="hover:text-green-400 transition">
-                  +1 (555) 123-4567
+                <a href="tel:+919508287609" className="hover:text-green-400 transition">
+                  9508287609
                 </a>
               </p>
             </div>
@@ -120,8 +145,8 @@ const Contact = () => {
             <div className="bg-gradient-to-br from-green-900/20 to-black/40 border border-green-700 p-8 rounded-3xl">
               <h3 className="text-2xl font-bold mb-4 text-green-400">✉️ Email</h3>
               <p className="text-gray-300 text-lg">
-                <a href="mailto:info@plantsstore.com" className="hover:text-green-400 transition">
-                  info@plantsstore.com
+                <a href="mailto:rishavkumar33372@gmail.com" className="hover:text-green-400 transition">
+                  rishavkumar33372@gmail.com
                 </a>
               </p>
             </div>

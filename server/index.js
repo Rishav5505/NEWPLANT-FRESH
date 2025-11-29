@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 
 const User = require('./models/User');
   const Order = require('./models/Order');
+  const Message = require('./models/Message');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -143,6 +144,21 @@ async function start() {
     }
   });
 
+  // Contact form: store a message (public)
+  app.post('/api/contact', async (req, res) => {
+    try {
+      const { name, email, phone, message } = req.body;
+      if (!name || !message) return res.status(400).json({ success: false, message: 'Name and message are required' });
+
+      const msg = new Message({ name, email: email || '', phone: phone || '', message });
+      await msg.save();
+      return res.json({ success: true, message: 'Message received' });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
   // Get user's own orders (protected)
   app.get('/api/my-orders', async (req, res) => {
     try {
@@ -260,6 +276,56 @@ async function start() {
     try {
       const users = await User.find().select('-password').sort({ createdAt: -1 }).limit(200);
       return res.json({ success: true, users });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // Admin: list messages
+  app.get('/api/admin/messages', requireAdmin, async (req, res) => {
+    try {
+      const messages = await Message.find().sort({ createdAt: -1 }).limit(500);
+      return res.json({ success: true, messages });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // Admin: get single message
+  app.get('/api/admin/messages/:id', requireAdmin, async (req, res) => {
+    try {
+      const m = await Message.findById(req.params.id);
+      if (!m) return res.status(404).json({ success: false, message: 'Message not found' });
+      return res.json({ success: true, message: m });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // Admin: mark message as read/unread or delete
+  app.post('/api/admin/messages/:id/mark-read', requireAdmin, async (req, res) => {
+    try {
+      const { read } = req.body;
+      const m = await Message.findById(req.params.id);
+      if (!m) return res.status(404).json({ success: false, message: 'Message not found' });
+      m.read = !!read;
+      await m.save();
+      return res.json({ success: true, message: m });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  app.post('/api/admin/messages/:id/delete', requireAdmin, async (req, res) => {
+    try {
+      const m = await Message.findById(req.params.id);
+      if (!m) return res.status(404).json({ success: false, message: 'Message not found' });
+      await m.remove();
+      return res.json({ success: true, message: 'Deleted' });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ success: false, message: 'Server error' });
