@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import SearchModal from "./SearchModal";
 
 // Use Vite env variable (must be prefixed with VITE_) when building with Vite.
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
@@ -6,6 +7,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -90,7 +92,9 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
           <input 
             type="text"
             placeholder="Search plants..."
-            className="px-4 py-2 rounded-full bg-[#0b2a1a] border border-green-700 text-white w-40 md:w-56 outline-none focus:border-green-400 transition"
+            onClick={() => setShowSearch(true)}
+            className="px-4 py-2 rounded-full bg-[#0b2a1a] border border-green-700 text-white w-40 md:w-56 outline-none focus:border-green-400 transition cursor-pointer"
+            readOnly
           />
           
           <button onClick={() => setShowCart?.(true)} className="relative text-2xl hover:text-green-400 transition">
@@ -239,6 +243,9 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
           )}
         </div>
       </nav>
+
+      {/* Search Modal */}
+      <SearchModal showSearch={showSearch} setShowSearch={setShowSearch} setCurrentPage={setCurrentPage} />
 
       {/* Login Modal */}
       {showLogin && (

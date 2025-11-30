@@ -1,13 +1,43 @@
 import React from "react";
 import { formatINRFromUSD } from "../utils/priceUtils";
+import heroImg from "../../HomeScrollimage/1.jpg";
 
-const HeroSection = ({ setCurrentPage }) => {
+const HeroSection = ({ setCurrentPage, heroImgOpacity = 0.10, accentSize = 206, accentColor = '#16a34a', accentOpacity = 0.12 }) => {
+  // helper: convert hex color to rgba string with alpha
+  const hexToRgba = (hex, alpha = 1) => {
+    const cleaned = hex.replace('#', '');
+    const bigint = parseInt(cleaned.length === 3 ? cleaned.split('').map(c => c + c).join('') : cleaned, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
   return (
     <section className="w-full px-0 py-12 flex flex-col gap-10">
       <div className="px-8">
       {/* Main Hero Banner */}
       <div className="w-full bg-gradient-to-r from-green-900/40 via-emerald-900/30 to-green-900/40 border border-green-700 rounded-2xl p-8 md:p-10 backdrop-blur-md shadow-2xl overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -z-10"></div>
+        {/* Accent circle (no blur) - color effect on top-right of hero; size and color controllable via props */}
+        <div
+          className="absolute top-0 right-0 -z-10 rounded-full"
+          style={{
+            width: `${accentSize}px`,
+            height: `${accentSize}px`,
+            transform: 'translate(25%, -15%)',
+            background: `radial-gradient(circle at center, ${hexToRgba(accentColor, accentOpacity)} 0%, transparent 60%)`
+          }}
+        ></div>
+
+        {/* Background image (opacity controllable) */}
+        <div className="absolute inset-0 -z-20" style={{
+          backgroundImage: `url(${heroImg})`,
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          opacity: heroImgOpacity
+        }}></div>
+
+        {/* SVG pattern overlay */}
         <div className="absolute inset-0 opacity-20 -z-10" style={{
           backgroundImage: "url('data:image/svg+xml,%3Csvg width=%22100%22 height=%22100%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath d=%22M20,50 Q50,20 80,50%22 stroke=%22%2322c55e%22 fill=%22none%22 opacity=%220.3%22/%3E%3C/svg%3E')",
           backgroundRepeat: "repeat"

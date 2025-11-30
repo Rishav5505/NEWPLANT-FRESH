@@ -6,8 +6,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const User = require('./models/User');
-  const Order = require('./models/Order');
-  const Message = require('./models/Message');
+const Order = require('./models/Order');
+const Message = require('./models/Message');
+const Plant = require('./models/Plant');
+const { syncCSVToDatabase, resyncCSV, watchCSVFile, stopWatchingCSVFile } = require('./utils/csvSync');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -28,6 +30,14 @@ async function start() {
   try {
     if (MONGO_URI) await mongoose.connect(MONGO_URI, { autoIndex: true });
     console.log('Connected to MongoDB (if MONGO_URI provided)');
+    
+    // Sync CSV data to database on startup
+    console.log('Starting CSV to database sync...');
+    const syncResult = await syncCSVToDatabase('indoor');
+      console.log('CSV Sync Result:', syncResult);
+    
+    // Start watching CSV file for real-time updates
+    watchCSVFile();
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
   }
@@ -240,7 +250,67 @@ async function start() {
     }
   });
 
-  // --- Admin routes ---
+  // --- Plant Routes ---
+
+  // Get all indoor plants (from CSV sync)
+  app.get('/api/plants/indoor', async (req, res) => {
+    try {
+      const plants = await Plant.find({ category: 'indoor' }).sort({ createdAt: -1 });
+      return res.json({ success: true, plants });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // Get plants by category
+  app.get('/api/plants/:category', async (req, res) => {
+    try {
+      const { category } = req.params;
+      const validCategories = ['indoor', 'flowering', 'outdoor', 'planters', 'care-kits'];
+      
+      if (!validCategories.includes(category)) {
+        return res.status(400).json({ success: false, message: 'Invalid category' });
+      }
+
+      const plants = await Plant.find({ category }).sort({ createdAt: -1 });
+      return res.json({ success: true, plants, category });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // Get single plant by ID
+  app.get('/api/plants/detail/:id', async (req, res) => {
+    try {
+      const plant = await Plant.findById(req.params.id);
+      if (!plant) return res.status(404).json({ success: false, message: 'Plant not found' });
+      return res.json({ success: true, plant });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // Search plants by name
+  app.get('/api/plants/search/:query', async (req, res) => {
+    try {
+      const { query } = req.params;
+      const plants = await Plant.find({
+        $or: [
+          { name: { $regex: query, $options: 'i' } },
+          { description: { $regex: query, $options: 'i' } }
+        ]
+      }).limit(20);
+      return res.json({ success: true, plants, query });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // --- Admin Routes ---
   const ADMIN_SECRET = process.env.ADMIN_SECRET || null;
 
   // helper middleware to require admin
@@ -324,6 +394,103 @@ async function start() {
     }
   });
 
+  // Admin: Resync CSV to database
+  app.post('/api/admin/plants/resync-csv', requireAdmin, async (req, res) => {
+    try {
+      const result = await resyncCSV();
+      return res.json(result);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    }
+  });
+
+  // Admin: Get all plants (for management)
+  app.get('/api/admin/plants', requireAdmin, async (req, res) => {
+    try {
+      const plants = await Plant.find().sort({ createdAt: -1 }).limit(200);
+      return res.json({ success: true, plants });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // Admin: Create/Add a plant manually (non-CSV)
+  app.post('/api/admin/plants', requireAdmin, async (req, res) => {
+    try {
+      const { name, category, salePrice, oldPrice, description, imageUrl } = req.body;
+      
+      if (!name || !category || !salePrice) {
+        return res.status(400).json({ success: false, message: 'Missing required fields' });
+      }
+
+      const plant = new Plant({
+        name,
+        category,
+        salePrice,
+        oldPrice,
+        description,
+        imageUrl,
+        syncedFrom: 'manual'
+      });
+      
+      await plant.save();
+      return res.json({ success: true, message: 'Plant added', plant });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    }
+  });
+
+  // Admin: Update a plant
+  app.post('/api/admin/plants/:id/update', requireAdmin, async (req, res) => {
+    try {
+      const { name, category, salePrice, oldPrice, description, imageUrl } = req.body;
+      const plant = await Plant.findById(req.params.id);
+      
+      if (!plant) return res.status(404).json({ success: false, message: 'Plant not found' });
+
+      // Only allow updating manual plants, not CSV synced ones
+      if (plant.syncedFrom === 'csv') {
+        return res.status(403).json({ success: false, message: 'Cannot edit CSV synced plants. Update the CSV file and resync.' });
+      }
+
+      if (name) plant.name = name;
+      if (category) plant.category = category;
+      if (salePrice) plant.salePrice = salePrice;
+      if (oldPrice !== undefined) plant.oldPrice = oldPrice;
+      if (description) plant.description = description;
+      if (imageUrl) plant.imageUrl = imageUrl;
+
+      await plant.save();
+      return res.json({ success: true, message: 'Plant updated', plant });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    }
+  });
+
+  // Admin: Delete a plant
+  app.post('/api/admin/plants/:id/delete', requireAdmin, async (req, res) => {
+    try {
+      const plant = await Plant.findById(req.params.id);
+      
+      if (!plant) return res.status(404).json({ success: false, message: 'Plant not found' });
+
+      // Only allow deleting manual plants, not CSV synced ones
+      if (plant.syncedFrom === 'csv') {
+        return res.status(403).json({ success: false, message: 'Cannot delete CSV synced plants. Update the CSV file and resync.' });
+      }
+
+      await Plant.findByIdAndDelete(req.params.id);
+      return res.json({ success: true, message: 'Plant deleted' });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    }
+  });
+
   // Admin: list messages
   app.get('/api/admin/messages', requireAdmin, async (req, res) => {
     try {
@@ -401,8 +568,27 @@ async function start() {
     }
   });
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
+  });
+
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received: closing HTTP server');
+    stopWatchingCSVFile();
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
+  });
+
+  process.on('SIGINT', () => {
+    console.log('SIGINT signal received: closing HTTP server');
+    stopWatchingCSVFile();
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
   });
 }
 

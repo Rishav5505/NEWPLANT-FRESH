@@ -1,22 +1,52 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { formatINRFromUSD } from "../utils/priceUtils";
 
 const plants = [
-  "Calathea Plant",
-  "Monstera Deliciosa",
-  "Snake Plant",
-  "Fiddle Leaf Fig",
-  "Pothos Plant",
-  "Bird of Paradise",
+  { id: 1, name: "Calathea Plant", price: 35.99, category: "indoor" },
+  { id: 2, name: "Monstera Deliciosa", price: 45.99, category: "indoor" },
+  { id: 3, name: "Snake Plant", price: 25.99, category: "indoor" },
+  { id: 4, name: "Fiddle Leaf Fig", price: 55.99, category: "indoor" },
+  { id: 5, name: "Pothos Plant", price: 29.99, category: "indoor" },
+  { id: 6, name: "Bird of Paradise", price: 65.99, category: "outdoor" },
+  { id: 7, name: "Orchid", price: 49.99, category: "indoor" },
+  { id: 8, name: "Tulip", price: 19.99, category: "flowering" },
+  { id: 9, name: "Rose", price: 39.99, category: "flowering" },
+  { id: 10, name: "Sunflower", price: 34.99, category: "outdoor" },
+  { id: 11, name: "Succulent", price: 15.99, category: "indoor" },
+  { id: 12, name: "Fern", price: 22.99, category: "indoor" },
 ];
 
-const SearchModal = () => {
-  const [showSearch, setShowSearch] = useState(false);
+const SearchModal = ({ showSearch, setShowSearch, setCurrentPage }) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [filteredPlants, setFilteredPlants] = useState([]);
 
-  const filteredPlants = plants.filter((plant) =>
-    plant.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      const filtered = plants.filter((plant) =>
+        plant.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredPlants(filtered);
+    } else {
+      setFilteredPlants([]);
+    }
+  }, [searchTerm]);
+
+  const handleClose = () => {
+    setShowSearch(false);
+    setSearchTerm("");
+  };
+
+  const handleSearch = (plantName) => {
+    // Navigate to shop or search results
+    setCurrentPage?.("shop");
+    handleClose();
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && searchTerm.trim()) {
+      handleSearch(searchTerm);
+    }
+  };
 
   return (
     <>
@@ -29,14 +59,12 @@ const SearchModal = () => {
                 placeholder="🔍 Search plants..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={handleKeyPress}
                 autoFocus
                 className="flex-1 px-4 py-3 bg-[#0b2a1a] border border-green-600 rounded-lg text-white outline-none focus:border-green-400 text-lg"
               />
               <button
-                onClick={() => {
-                  setShowSearch(false);
-                  setSearchTerm("");
-                }}
+                onClick={handleClose}
                 className="text-3xl text-gray-400 hover:text-white"
               >
                 ✕
@@ -46,15 +74,16 @@ const SearchModal = () => {
             {searchTerm && (
               <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
                 {filteredPlants.length > 0 ? (
-                  filteredPlants.map((plant, idx) => (
+                  filteredPlants.map((plant) => (
                     <button
-                      key={idx}
+                      key={plant.id}
+                      onClick={() => handleSearch(plant.name)}
                       className="w-full text-left px-4 py-3 hover:bg-green-900/30 border border-green-700/50 rounded-lg transition flex items-center gap-3"
                     >
                       <span className="text-2xl">🌿</span>
                       <div>
-                        <p className="font-bold">{plant}</p>
-                        <p className="text-sm text-gray-400">{formatINRFromUSD(35.99)} - {formatINRFromUSD(65.99)}</p>
+                        <p className="font-bold">{plant.name}</p>
+                        <p className="text-sm text-gray-400">{formatINRFromUSD(plant.price)}</p>
                       </div>
                     </button>
                   ))
