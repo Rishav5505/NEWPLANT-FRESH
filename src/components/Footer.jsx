@@ -1,6 +1,7 @@
 import React from "react";
 
-const Footer = () => {
+const Footer = ({ setCurrentPage }) => {
+  const go = (page, e) => { e?.preventDefault(); if (setCurrentPage) setCurrentPage(page); else window.location.hash = page; };
   return (
     <footer className="bg-[#0a1a12] border-t border-green-700">
       <div className="max-w-full mx-auto px-8 py-16">
@@ -56,11 +57,11 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="border-t border-green-700 pt-8 flex flex-col md:flex-row justify-between items-center text-gray-400 text-sm">
-          <p>&copy; 2024 Plants Store. All rights reserved.</p>
+          <p>&copy; 2025 Plants Store. All rights reserved.</p>
           <div className="flex gap-6 mt-4 md:mt-0">
-            <a href="#" className="hover:text-green-400 transition">Privacy Policy</a>
-            <a href="#" className="hover:text-green-400 transition">Terms of Service</a>
-            <a href="#" className="hover:text-green-400 transition">Contact</a>
+            <a href="#" onClick={(e) => go('privacy', e)} className="hover:text-green-400 transition">Privacy Policy</a>
+            <a href="#" onClick={(e) => go('terms', e)} className="hover:text-green-400 transition">Terms of Service</a>
+            <a href="#" onClick={(e) => go('contact', e)} className="hover:text-green-400 transition">Contact</a>
           </div>
         </div>
       </div>

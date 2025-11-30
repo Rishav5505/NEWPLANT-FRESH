@@ -56,7 +56,9 @@ async function start() {
       await user.save();
 
       const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-      return res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+      const out = user.toObject();
+      delete out.password;
+      return res.json({ success: true, token, user: out });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ success: false, message: 'Server error' });
@@ -76,7 +78,9 @@ async function start() {
       if (!ok) return res.status(400).json({ success: false, message: 'Invalid credentials' });
 
       const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-      return res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+      const out = user.toObject();
+      delete out.password;
+      return res.json({ success: true, token, user: out });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ success: false, message: 'Server error' });
@@ -94,6 +98,44 @@ async function start() {
       return res.json({ success: true, user });
     } catch (err) {
       return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+  });
+
+  // Update current user's profile (protected)
+  app.put('/api/me', async (req, res) => {
+    try {
+      const auth = req.headers.authorization;
+      if (!auth) return res.status(401).json({ success: false, message: 'Missing token' });
+      const token = auth.split(' ')[1];
+      const data = jwt.verify(token, JWT_SECRET);
+      const user = await User.findById(data.id);
+      if (!user) return res.status(401).json({ success: false, message: 'Invalid token' });
+
+      // Only allow updating specific fields
+      const allowed = [
+        'name', 'email', 'phone', 'profilePhoto', 'addresses', 'defaultAddressId',
+        'paymentMethods', 'defaultPaymentId', 'walletBalance', 'twoFAEnabled'
+      ];
+
+      for (let key of allowed) {
+        if (req.body[key] !== undefined) {
+          user[key] = req.body[key];
+        }
+      }
+
+      // handle password change separately
+      if (req.body.password) {
+        const hashed = await bcrypt.hash(req.body.password, 10);
+        user.password = hashed;
+      }
+
+      await user.save();
+      const out = user.toObject();
+      delete out.password;
+      return res.json({ success: true, user: out });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
     }
   });
 
