@@ -12,11 +12,8 @@
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-<<<<<<< HEAD
-    "react-router-dom": "^7.9.6"
-=======
+    "react-router-dom": "^7.9.6",
     "tailwindcss": "^4.1.17"
->>>>>>> 1edaa973200629debeec50b5d0e17c0d0714265f
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
