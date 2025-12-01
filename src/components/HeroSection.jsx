@@ -1,8 +1,36 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { formatINRFromUSD } from "../utils/priceUtils";
-import heroImg from "../../HomeScrollimage/1.jpg";
 
-const HeroSection = ({ setCurrentPage, heroImgOpacity = 0.10, accentSize = 206, accentColor = '#16a34a', accentOpacity = 0.12 }) => {
+// Configure slideshow images (update filenames here to add/remove images)
+const SLIDES = [
+  "1.jpg",
+  "2.jpg",
+  "3.jpg",
+  "4.jpg",
+  "5.jpg",
+];
+
+const HeroSection = ({ setCurrentPage, heroImgOpacity = 1, accentSize = 206, accentColor = '#16a34a', accentOpacity = 0.12, slideInterval = 4000 }) => {
+  const [current, setCurrent] = useState(0);
+  const timerRef = useRef(null);
+
+  // build full URL for an image filename in the HomeScrollimage folder
+  const slideUrl = (filename) => new URL(`../../HomeScrollimage/${filename}`, import.meta.url).href;
+
+  useEffect(() => {
+    // autoplay
+    timerRef.current = setInterval(() => setCurrent((c) => (c + 1) % SLIDES.length), slideInterval);
+    return () => clearInterval(timerRef.current);
+  }, [slideInterval]);
+
+  const goTo = (i) => {
+    setCurrent(i % SLIDES.length);
+    // reset timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => setCurrent((c) => (c + 1) % SLIDES.length), slideInterval);
+    }
+  };
   // helper: convert hex color to rgba string with alpha
   const hexToRgba = (hex, alpha = 1) => {
     const cleaned = hex.replace('#', '');
@@ -16,7 +44,7 @@ const HeroSection = ({ setCurrentPage, heroImgOpacity = 0.10, accentSize = 206, 
     <section className="w-full px-0 py-12 flex flex-col gap-10">
       <div className="px-8">
       {/* Main Hero Banner */}
-      <div className="w-full bg-gradient-to-r from-green-900/40 via-emerald-900/30 to-green-900/40 border border-green-700 rounded-2xl p-8 md:p-10 backdrop-blur-md shadow-2xl overflow-hidden relative">
+      <div className="w-full bg-gradient-to-r from-green-900/40 via-emerald-900/30 to-green-900/40 border border-green-700 rounded-2xl p-8 md:p-10 shadow-2xl overflow-hidden relative h-96 md:h-[520px]">
         {/* Accent circle (no blur) - color effect on top-right of hero; size and color controllable via props */}
         <div
           className="absolute top-0 right-0 -z-10 rounded-full"
@@ -28,32 +56,40 @@ const HeroSection = ({ setCurrentPage, heroImgOpacity = 0.10, accentSize = 206, 
           }}
         ></div>
 
-        {/* Background image (opacity controllable) */}
-        <div className="absolute inset-0 -z-20" style={{
-          backgroundImage: `url(${heroImg})`,
-          backgroundRepeat: 'no-repeat',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          opacity: heroImgOpacity
-        }}></div>
+        {/* Background slideshow (no blur on image). Images are cover-sized and layered behind content. */}
+        <div className="absolute inset-0 z-0">
+          {SLIDES.map((f, i) => (
+            <div
+              key={f}
+              className={`absolute inset-0 transition-opacity duration-700 ${i === current ? 'opacity-100' : 'opacity-0'}`}
+              style={{
+                backgroundImage: `url(${slideUrl(f)})`,
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                willChange: 'opacity'
+              }}
+            />
+          ))}
+        </div>
 
-        {/* SVG pattern overlay */}
-        <div className="absolute inset-0 opacity-20 -z-10" style={{
-          backgroundImage: "url('data:image/svg+xml,%3Csvg width=%22100%22 height=%22100%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath d=%22M20,50 Q50,20 80,50%22 stroke=%22%2322c55e%22 fill=%22none%22 opacity=%220.3%22/%3E%3C/svg%3E')",
+        {/* SVG pattern overlay (subtle) */}
+        <div className="absolute inset-0 opacity-8 z-10" style={{
+          backgroundImage: "url('data:image/svg+xml,%3Csvg width=%22100%22 height=%22100%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath d=%22M20,50 Q50,20 80,50%22 stroke=%22%2322c55e%22 fill=%22none%22 opacity=%220.12%22/%3E%3C/svg%3E')",
           backgroundRepeat: "repeat"
         }}></div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-          {/* Left Content */}
-          <div className="space-y-4 z-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-full z-20">
+          {/* Left Content - Dark background for readability */}
+          <div className="space-y-4 z-20 bg-black/50 p-8 rounded-xl backdrop-blur-sm">
             <div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-2 leading-tight">
+              <h1 className="text-4xl md:text-5xl font-bold mb-2 leading-tight text-white">
                 🌱 Fresh Green <span className="text-green-400">Plants</span>
               </h1>
               <p className="text-lg text-green-300 font-semibold">Transform Your Home & Office</p>
             </div>
             
-            <p className="text-gray-200 text-base leading-relaxed max-w-lg">
+            <p className="text-gray-100 text-base leading-relaxed max-w-lg">
               Premium indoor & outdoor plants. Hand-selected & guaranteed fresh. Perfect for everyone!
             </p>
 
@@ -61,7 +97,7 @@ const HeroSection = ({ setCurrentPage, heroImgOpacity = 0.10, accentSize = 206, 
               <div>
                 <p className="text-3xl font-bold text-green-400">From {formatINRFromUSD(25.99)}</p>
               </div>
-              <div className="text-gray-400 text-xs border-l border-green-700 pl-3">
+              <div className="text-gray-300 text-xs border-l border-green-500 pl-3">
                 <p>✓ Free shipping over {formatINRFromUSD(50)}</p>
                 <p>✓ 100% Fresh Guarantee</p>
               </div>
@@ -104,6 +140,18 @@ const HeroSection = ({ setCurrentPage, heroImgOpacity = 0.10, accentSize = 206, 
               <p className="text-gray-300 text-xs">Happy</p>
             </div>
           </div>
+        </div>
+
+        {/* Slide controls (dots) */}
+        <div className="absolute left-1/2 transform -translate-x-1/2 bottom-4 z-30 flex gap-2">
+          {SLIDES.map((s, i) => (
+            <button
+              key={s}
+              onClick={() => goTo(i)}
+              aria-label={`Go to slide ${i + 1}`}
+              className={`w-3 h-3 rounded-full ${i === current ? 'bg-white' : 'bg-white/40'} border border-white/20`}
+            />
+          ))}
         </div>
       </div>
 

@@ -26,7 +26,7 @@ const Shop = ({ addToCart }) => {
                 <div className="flex items-center justify-between">
                 <p className="text-green-400 font-bold text-xl">{formatINRFromUSD(p.price)}</p>
                 <button
-                  onClick={() => addToCart({ id: p.id, name: p.name, price: p.price, emoji: p.emoji })}
+                  onClick={() => addToCart({ id: p.id, name: p.name, price: p.price, emoji: p.emoji, currency: 'USD' })}
                   className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg"
                 >
                   Add to Cart

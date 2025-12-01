@@ -4,14 +4,15 @@ import { toINR, formatINR } from "../utils/priceUtils";
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
 const Cart = ({ showCart, setShowCart, cartItems = [], updateQuantity, removeItem, setCurrentPage, setPaymentOrderId }) => {
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0); // USD
-  const tax = subtotal * 0.1; // USD
-  const shipping = cartItems.length > 0 ? 5 : 0; // USD
-  const total = subtotal + tax + shipping; // USD
-  const subtotalINR = toINR(subtotal);
-  const taxINR = toINR(tax);
-  const shippingINR = toINR(shipping);
-  const totalINR = toINR(total);
+  // Compute subtotal in INR. Items may be stored in USD (default) or INR (csv/backend).
+  const subtotalINR = cartItems.reduce((sum, item) => {
+    const priceINR = item.currency === 'INR' ? Number(item.price || 0) : toINR(item.price || 0);
+    return sum + priceINR * (item.quantity || 1);
+  }, 0);
+
+  const taxINR = +(subtotalINR * 0.1).toFixed(2);
+  const shippingINR = cartItems.length > 0 ? toINR(5) : 0;
+  const totalINR = +(subtotalINR + taxINR + shippingINR).toFixed(2);
 
   return (
     <>
@@ -39,10 +40,16 @@ const Cart = ({ showCart, setShowCart, cartItems = [], updateQuantity, removeIte
                       className="bg-green-900/20 border border-green-700 p-4 rounded-lg flex justify-between items-center"
                     >
                       <div className="flex items-center gap-4 flex-1">
-                        <div className="text-4xl">{item.emoji}</div>
+                        <div className="w-16 h-16 rounded-lg bg-gray-700 overflow-hidden flex items-center justify-center">
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="text-4xl">{item.emoji || '🌿'}</div>
+                          )}
+                        </div>
                         <div className="flex-1">
                           <h3 className="font-bold">{item.name}</h3>
-                          <p className="text-green-400">{formatINR(toINR(item.price))}</p>
+                          <p className="text-green-400">{formatINR(item.currency === 'INR' ? Number(item.price || 0) : toINR(item.price || 0))}</p>
                         </div>
                       </div>
 

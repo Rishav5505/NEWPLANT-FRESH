@@ -1,11 +1,14 @@
 const mongoose = require('mongoose');
 
 const OrderItemSchema = new mongoose.Schema({
-  productId: { type: Number },
+  // productId may be a numeric SKU or a Mongo ObjectId string depending on the source
+  productId: { type: mongoose.Schema.Types.Mixed },
   name: { type: String },
   price: { type: Number },
   quantity: { type: Number },
-  emoji: { type: String }
+  emoji: { type: String },
+  image: { type: String },
+  currency: { type: String }
 }, { _id: false });
 
 const OrderSchema = new mongoose.Schema({

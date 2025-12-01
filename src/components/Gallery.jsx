@@ -11,27 +11,33 @@ const galleryItems = [
 
 const Gallery = ({ setCurrentPage }) => {
   return (
-    <section className="px-0 py-16 bg-gradient-to-b from-green-950/10 to-transparent">
-      <div className="max-w-full mx-auto px-8">
-        <h2 className="text-center text-4xl md:text-5xl font-bold mb-12">
+    <section className="px-0 py-12 bg-gradient-to-b from-green-950/10 to-transparent">
+      <div className="max-w-full mx-auto px-6">
+        <h2 className="text-center text-3xl md:text-4xl font-bold mb-8">
           Explore Our Collections
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* simple fade-in keyframes scoped to this component */}
+        <style>{`
+          @keyframes fadeInGallery { from { opacity: 0; transform: translateY(6px) scale(.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        `}</style>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {galleryItems.map((item, idx) => (
             <div
               key={idx}
               onClick={() => item.page && setCurrentPage?.(item.page)}
-              className={`group relative bg-gradient-to-br from-green-900/40 to-black/50 border border-green-700 p-8 rounded-2xl backdrop-blur-md hover:border-green-500 hover:shadow-2xl transition-all cursor-pointer overflow-hidden`}
+              className={`group relative bg-gradient-to-br from-green-900/40 to-black/50 border border-green-700 p-4 rounded-xl hover:border-green-500 hover:shadow-lg transition-transform duration-300 cursor-pointer overflow-hidden`}
+              style={{ animation: `fadeInGallery 420ms ease ${idx * 80}ms both` }}
             >
               <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition" style={{
                 backgroundImage: "radial-gradient(circle, #22c55e 1px, transparent 1px)",
-                backgroundSize: "30px 30px"
+                backgroundSize: "20px 20px"
               }}></div>
-              <div className="text-7xl mb-4 group-hover:scale-110 transition transform drop-shadow-lg">{item.emoji}</div>
-              <h3 className="text-2xl font-bold mb-2">{item.title}</h3>
-              <p className="text-green-400 font-semibold">{item.count}</p>
-              <div className="absolute inset-0 bg-green-500/0 group-hover:bg-green-500/5 transition rounded-2xl"></div>
+              <div className="text-5xl mb-2 group-hover:scale-110 transition-transform transform-gpu drop-shadow-lg">{item.emoji}</div>
+              <h3 className="text-lg font-bold mb-1">{item.title}</h3>
+              <p className="text-green-400 text-sm font-semibold">{item.count}</p>
+              <div className="absolute inset-0 bg-green-500/0 group-hover:bg-green-500/5 transition rounded-xl"></div>
             </div>
           ))}
         </div>

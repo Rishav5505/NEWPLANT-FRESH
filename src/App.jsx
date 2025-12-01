@@ -45,7 +45,7 @@ const App = () => {
       if (existing) {
         return prev.map((p) => (p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p));
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...product, quantity: 1, currency: product.currency || 'USD' }];
     });
     setShowCart(true);
   };
@@ -75,7 +75,7 @@ const App = () => {
       <Notifications />
 
       {/* Main Content */}
-      <Navbar setCurrentPage={setCurrentPage} setShowCart={setShowCart} cartCount={cartCount} />
+      <Navbar setCurrentPage={setCurrentPage} setShowCart={setShowCart} cartCount={cartCount} addToCart={addToCart} />
       <Cart
         showCart={showCart}
         setShowCart={setShowCart}
@@ -91,6 +91,8 @@ const App = () => {
         <Route path="/orders/:orderId" element={<OrderDetail />} />
         <Route path="/messages/:messageId" element={<MessageDetail />} />
         <Route path="/users/:userId" element={<UserDetail />} />
+        {/* Fallback route to avoid "No routes matched" warnings for app-managed routes */}
+        <Route path="*" element={<></>} />
       </Routes>
 
       {currentPage === 'payment' && (
@@ -157,7 +159,7 @@ const App = () => {
 
       {currentPage === "indoreplants" && (
         <>
-          <IndorePlants addToCart={addToCart} />
+          <IndorePlants addToCart={addToCart} setCurrentPage={setCurrentPage} />
           <Footer setCurrentPage={setCurrentPage} />
         </>
       )}

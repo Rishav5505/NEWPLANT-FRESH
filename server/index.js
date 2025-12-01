@@ -152,9 +152,20 @@ async function start() {
       const { items, paymentMethod } = req.body;
       if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, message: 'No items provided' });
 
-      const subtotal = items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.quantity) || 0), 0);
+      // sanitize incoming items to expected schema
+      const sanitizedItems = items.map((it) => ({
+        productId: it.productId !== undefined ? it.productId : (it.id || null),
+        name: it.name || '',
+        price: Number(it.price) || 0,
+        quantity: Number(it.quantity) || 1,
+        emoji: it.emoji || '',
+        image: it.image || '',
+        currency: it.currency || ''
+      }));
+
+      const subtotal = sanitizedItems.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.quantity) || 0), 0);
       const tax = +(subtotal * 0.1).toFixed(2);
-      const shipping = items.length > 0 ? 5 : 0;
+      const shipping = sanitizedItems.length > 0 ? 5 : 0;
       const total = +(subtotal + tax + shipping).toFixed(2);
 
       // determine initial payment and order status
@@ -173,7 +184,7 @@ async function start() {
 
       const order = new Order({
         user: user._id,
-        items,
+        items: sanitizedItems,
         subtotal,
         tax,
         shipping,

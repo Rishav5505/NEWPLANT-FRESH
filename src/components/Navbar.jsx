@@ -4,7 +4,7 @@ import SearchModal from "./SearchModal";
 // Use Vite env variable (must be prefixed with VITE_) when building with Vite.
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
-const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
+const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -245,7 +245,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0 }) => {
       </nav>
 
       {/* Search Modal */}
-      <SearchModal showSearch={showSearch} setShowSearch={setShowSearch} setCurrentPage={setCurrentPage} />
+      <SearchModal showSearch={showSearch} setShowSearch={setShowSearch} setCurrentPage={setCurrentPage} addToCart={addToCart} />
 
       {/* Login Modal */}
       {showLogin && (
