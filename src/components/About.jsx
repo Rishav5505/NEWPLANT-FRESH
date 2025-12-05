@@ -1,34 +1,133 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import "./About.css";
+import RishavImg from "../assets/Rishav.jpg";
+import VinayImg from "../assets/vinay.jpg";
+import SaurabhImg from "../assets/saurabh.jpg";
+
+const Feature = ({ title, children, delay = "0s" }) => (
+  <div className="about-card group reveal" data-delay={delay} style={{ transitionDelay: delay }}>
+    <div className="about-card-inner">
+      <h4 className="text-lg font-semibold mb-2">{title}</h4>
+      <p className="text-sm text-slate-300">{children}</p>
+    </div>
+  </div>
+);
 
 const About = () => {
+  const plantRef = useRef(null);
+
+  useEffect(() => {
+    const els = document.querySelectorAll('.reveal');
+    if (!els.length) return;
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const d = e.target.getAttribute('data-delay') || e.target.style.transitionDelay || '0s';
+          e.target.style.transitionDelay = d;
+          e.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.12 });
+    els.forEach(el => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
+  const handleMove = (e) => {
+    const el = plantRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    el.style.transform = `rotateX(${ -y * 7 }deg) rotateY(${ x * 7 }deg) translateZ(0)`;
+  };
+  const handleLeave = () => {
+    const el = plantRef.current; if (!el) return; el.style.transform = '';
+  };
   return (
-    <section className="min-h-screen px-0 py-20 bg-gradient-to-b from-green-950/10 to-transparent">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-5xl font-bold mb-6 text-center"><span className="text-green-400">About</span> Us</h1>
-        <p className="text-gray-300 text-lg leading-relaxed mb-6">Welcome to Plants Store — a community of plant lovers and growers. We source healthy plants from trusted nurseries, inspect each specimen, and provide clear care instructions so your plants thrive in their new home. Our team is passionate about sustainability, education, and bringing a little more green into everyday life.</p>
+    <section className="about-section">
+      <div className="about-container">
+        <div className="about-left">
+          <h1 className="about-title"><span>About</span> Us</h1>
+          <p className="about-lead">Welcome to Plants Store — a creative plant studio where every leaf tells a story. We hand-pick nursery-grown plants, perform detailed health checks, and include friendly care notes so your new green friend settles in beautifully.</p>
 
-        <h3 className="text-2xl font-bold mt-8 mb-4">Our Mission</h3>
-        <p className="text-gray-300 mb-6">We make plant parenting simple and enjoyable for everyone — from first-time plant parents to experienced gardeners. We focus on sustainable sourcing, responsible packaging, and helpful customer support so you feel confident caring for your plants.</p>
+            <div className="about-features">
+              <Feature delay="0.04s" title="Quality Plants">Hand-selected specimens from trusted growers with quality checks.</Feature>
+              <Feature delay="0.12s" title="Thoughtful Packaging">Eco-friendly packaging designed to protect plants during transit.</Feature>
+              <Feature delay="0.20s" title="Plant Support">Guides, video tips and responsive customer help to keep plants thriving.</Feature>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          <div className="bg-gradient-to-br from-green-900/20 to-black/40 border border-green-700 p-6 rounded-2xl">
-            <h4 className="font-bold text-lg mb-2">Quality Plants</h4>
-            <p className="text-gray-300">Hand-selected, nursery-grown plants.</p>
+            <div className="cta-row">
+              <a href="/shop" className="cta">Explore Plants</a>
+              <div className="social-icons">
+                <a href="#" aria-label="instagram" className="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 2h10a5 5 0 015 5v10a5 5 0 01-5 5H7a5 5 0 01-5-5V7a5 5 0 015-5z" stroke="#BFF0D8" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" stroke="#BFF0D8" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M17.5 6.5h.01" stroke="#BFF0D8" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg></a>
+                <a href="#" aria-label="facebook" className="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 2h-3a4 4 0 00-4 4v3H8v4h3v8h4v-8h3l1-4h-4V6a1 1 0 011-1h3V2z" stroke="#BFF0D8" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg></a>
+              </div>
+            </div>
+
+          <div className="about-mission">
+            <h3 className="mission-title">Our Mission</h3>
+            <p className="text-sm text-slate-300">Make plant parenting joyful and accessible — for beginners and pros alike. We focus on sustainable sourcing, clear education, and community building.</p>
           </div>
-          <div className="bg-gradient-to-br from-green-900/20 to-black/40 border border-green-700 p-6 rounded-2xl">
-            <h4 className="font-bold text-lg mb-2">Fast Delivery</h4>
-            <p className="text-gray-300">Safe packaging and reliable shipping partners.</p>
-          </div>
-          <div className="bg-gradient-to-br from-green-900/20 to-black/40 border border-green-700 p-6 rounded-2xl">
-            <h4 className="font-bold text-lg mb-2">Satisfaction</h4>
-            <p className="text-gray-300">Money-back guarantee on unhealthy plants.</p>
+
+          <div className="team">
+            <h3 className="team-title">Meet the Team</h3>
+            <div className="team-list">
+              <div className="team-card reveal" data-delay="0.28s">
+                <div className="team-image-wrap">
+                  <img src={RishavImg} alt="Rishav Kumar" className="team-image" />
+                </div>
+                <div className="team-info">
+                  <div className="team-name">Rishav Kumar</div>
+                  <div className="team-role">Founder & Horticulturist</div>
+                </div>
+              </div>
+              <div className="team-card reveal" data-delay="0.36s">
+                <div className="team-image-wrap">
+                  <img src={VinayImg} alt="Vinay Badnoriya" className="team-image" />
+                </div>
+                <div className="team-info">
+                  <div className="team-name">Vinay Badnoriya</div>
+                  <div className="team-role">Founder & Operations</div>
+                </div>
+              </div>
+              <div className="team-card reveal" data-delay="0.44s">
+                <div className="team-image-wrap">
+                  <img src={SaurabhImg} alt="Saurabh Kumar" className="team-image" />
+                </div>
+                <div className="team-info">
+                  <div className="team-name">Saurabh Kumar</div>
+                  <div className="team-role">Co-Founder & Tech Lead</div>
+                </div>
+              </div>
+            </div>
+            <p className="contact">Contact: <a href="mailto:rishavkumar33372@gmail.com">rishavkumar33372@gmail.com</a></p>
           </div>
         </div>
 
-        <div className="mt-10 bg-[#07110a] p-6 rounded-2xl border border-green-800">
-          <h3 className="text-2xl font-bold mb-3 text-green-300">Meet the Team</h3>
-          <p className="text-gray-300 mb-2">We are a small team of horticulturists, packers and plant lovers based in India. We handle sourcing, quality checks, and customer care personally.</p>
-          <p className="text-gray-400 text-sm">Contact: <a href="mailto:rishavkumar33372@gmail.com" className="text-green-300">rishavkumar33372@gmail.com</a></p>
+        <div className="about-right">
+          <div className="blob" />
+          <div
+            className="plant-illustration reveal"
+            ref={plantRef}
+            onMouseMove={handleMove}
+            onMouseLeave={handleLeave}
+            data-delay="0.06s"
+            style={{ transitionDelay: '0.06s' }}
+          >
+            <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" className="plant-svg" aria-hidden>
+              <defs>
+                <linearGradient id="g1" x1="0" x2="1">
+                  <stop offset="0%" stopColor="#2bd18f" />
+                  <stop offset="100%" stopColor="#1fa67a" />
+                </linearGradient>
+              </defs>
+              <g transform="translate(20,20)">
+                <path className="leaf leaf-1" d="M60 120 C40 70, 120 40, 140 80 C160 120, 100 150, 60 120Z" fill="url(#g1)" opacity="0.95" />
+                <path className="leaf leaf-2" d="M90 140 C110 100, 190 120, 170 160 C150 200, 100 180, 90 140Z" fill="#12805f" opacity="0.93" />
+                <rect x="106" y="160" width="12" height="46" rx="6" fill="#073b2a" />
+              </g>
+            </svg>
+          </div>
         </div>
       </div>
     </section>

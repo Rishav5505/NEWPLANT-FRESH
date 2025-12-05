@@ -3,7 +3,7 @@ import React from "react";
 const Footer = ({ setCurrentPage }) => {
   const go = (page, e) => { e?.preventDefault(); if (setCurrentPage) setCurrentPage(page); else window.location.hash = page; };
   return (
-    <footer className="bg-[#0a1a12] border-t border-green-700">
+    <footer className="bg-[#071018] border-t border-green-700">
       <div className="max-w-full mx-auto px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}

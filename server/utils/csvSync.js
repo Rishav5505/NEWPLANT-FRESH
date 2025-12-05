@@ -6,14 +6,17 @@ const Plant = require('../models/Plant');
 // CSV file paths for different categories
 const CSV_PATHS = {
   indoor: path.join(__dirname, '../../Datasets/IndoorCollection1.csv'),
-  flowering: path.join(__dirname, '../../Datasets/FloweringPlant1.xlsx')
+  flowering: path.join(__dirname, '../../Datasets/flowering_plants.csv'),
+  planters: path.join(__dirname, '../../Datasets/Planter and pots.csv'),
+  'care-kits': path.join(__dirname, '../../Datasets/carekits.csv'),
+  outdoor: path.join(__dirname, '../../Datasets/outdoor_plants.csv')
 };
 
 // Store for debouncing file changes
 let syncTimeouts = {};
 let watchers = {};
 
-// Parse and sync CSV data to MongoDB Indore collection
+// Parse and sync CSV data to MongoDB
 async function syncCSVToDatabase(category = 'indoor') {
   try {
     const filePath = CSV_PATHS[category];
@@ -25,33 +28,78 @@ async function syncCSVToDatabase(category = 'indoor') {
 
     const plants = [];
     
+    // Helper function to extract price from formatted string
+    const extractPrice = (priceString) => {
+      if (!priceString) return 0;
+      
+      // For outdoor/flowering CSV format: "Original price ₹ X ... Current price ₹ Y"
+      // Match currency symbol with or without spaces
+      const currentPriceMatch = priceString.match(/Current price\s*₹?\s*([\d,]+)/i);
+      if (currentPriceMatch) {
+        return parseInt(currentPriceMatch[1].replace(/,/g, '')) || 0;
+      }
+      
+      // Fallback: extract any number with ₹
+      const currencyMatch = priceString.match(/₹\s*([\d,]+)/);
+      if (currencyMatch) {
+        return parseInt(currencyMatch[1].replace(/,/g, '')) || 0;
+      }
+      
+      // Last resort: extract any number
+      const numberMatch = priceString.match(/[\d,]+/);
+      if (numberMatch) {
+        return parseInt(numberMatch[0].replace(/,/g, '')) || 0;
+      }
+      
+      return 0;
+    };
+    
     // Read CSV file
     return new Promise((resolve, reject) => {
       fs.createReadStream(filePath)
         .pipe(csv())
         .on('data', (row) => {
-          // Parse CSV row
+          // Handle BOM in CSV headers - csv-parser may include BOM character in first key
+          // Get the actual keys, handling BOM prefix
+          const rowKeys = Object.keys(row);
+          const cleanRow = {};
+          
+          for (const key of rowKeys) {
+            // Remove BOM character (U+FEFF) if present
+            const cleanKey = key.replace(/^\uFEFF/, '');
+            cleanRow[cleanKey] = row[key];
+          }
+          
+          // Parse CSV row - handle different column names for different CSV files
+          const name = cleanRow.Title || cleanRow.Name || '';
+          const priceField = cleanRow['Sale Price'] || cleanRow['Price'] || '';
+          const price = extractPrice(priceField);
+          
           const plant = {
-            name: row.Title || '',
-            category: category, // All CSV data goes to 'indoor' category
-            salePrice: parseInt(row['Sale Price']) || 0,
-            oldPrice: row['Old Price'] ? parseInt(row['Old Price']) : null,
-            description: row.Description || '',
-            imageUrl: row['Image URL'] || '',
-            csvId: row.Title || '', // Use Title as unique identifier
+            name: name,
+            category: category,
+            salePrice: price,
+            oldPrice: cleanRow['Old Price'] ? extractPrice(cleanRow['Old Price']) : null,
+            description: cleanRow.Description || '',
+            imageUrl: cleanRow['Image URL'] || '',
+            csvId: name, // Use Title/Name as unique identifier
             syncedFrom: 'csv'
           };
-          plants.push(plant);
+          
+          // Only add if it has a name and price
+          if (plant.name && plant.salePrice > 0) {
+            plants.push(plant);
+          }
         })
         .on('end', async () => {
           try {
-            // Clear existing indoor plants from CSV
+            // Clear existing plants from CSV for this category
             await Plant.deleteMany({ category: category, syncedFrom: 'csv' });
             
             // Insert new plants from CSV
             if (plants.length > 0) {
               await Plant.insertMany(plants);
-              console.log(`✅ Synced ${plants.length} plants from CSV to database`);
+              console.log(`✅ Synced ${plants.length} ${category} plants from CSV to database`);
             }
             
             resolve({ 
@@ -76,9 +124,9 @@ async function syncCSVToDatabase(category = 'indoor') {
 }
 
 // Manual resync endpoint
-async function resyncCSV() {
+async function resyncCSV(category = 'indoor') {
   try {
-    const result = await syncCSVToDatabase('indoor');
+    const result = await syncCSVToDatabase(category);
     return result;
   } catch (err) {
     return { success: false, message: 'Resync error', error: err.message };

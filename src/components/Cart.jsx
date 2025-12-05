@@ -18,7 +18,7 @@ const Cart = ({ showCart, setShowCart, cartItems = [], updateQuantity, removeIte
     <>
       {showCart && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end">
-          <div className="w-full md:w-96 bg-[#0a1a12] border-l-2 border-green-600 rounded-t-3xl p-6 max-h-screen overflow-y-auto shadow-2xl">
+          <div className="w-full md:w-96 bg-[#071018] border-l-2 border-green-600 rounded-t-3xl p-6 max-h-screen overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-3xl font-bold text-green-400">🛒 Shopping Cart</h2>
               <button onClick={() => setShowCart(false)} className="text-3xl text-gray-400 hover:text-white">

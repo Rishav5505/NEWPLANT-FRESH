@@ -1,0 +1,12 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#12805f;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2bd18f;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#grad3)"/>
+  <circle cx="100" cy="70" r="35" fill="#f0f0f0"/>
+  <ellipse cx="100" cy="140" rx="40" ry="45" fill="#f0f0f0"/>
+  <text x="100" y="155" text-anchor="middle" font-size="24" font-weight="bold" fill="#12805f">SK</text>
+</svg>

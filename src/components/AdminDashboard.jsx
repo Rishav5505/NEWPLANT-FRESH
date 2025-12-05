@@ -1,4 +1,7 @@
 import React from 'react';
+import AnalyticsDashboard from './AnalyticsDashboard';
+import InventoryManagement from './InventoryManagement';
+import MarketingManagement from './MarketingManagement';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 
@@ -12,6 +15,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
   const [authError, setAuthError] = React.useState('');
   const [selectedMessage, setSelectedMessage] = React.useState(null);
   const [activeSection, setActiveSection] = React.useState('dashboard');
+  const [adminToken] = React.useState(localStorage.getItem('auth_token') || '');
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -239,6 +243,30 @@ const AdminDashboard = ({ setCurrentPage }) => {
           </div>
         )}
 
+        {/* Enhanced Section Navigation */}
+        <div className="mb-8 border-b border-gray-700 overflow-x-auto">
+          <div className="flex gap-4">
+            {[
+              { id: 'dashboard', label: '📊 Dashboard', icon: '📊' },
+              { id: 'analytics', label: '📈 Analytics', icon: '📈' },
+              { id: 'inventory', label: '📦 Inventory', icon: '📦' },
+              { id: 'marketing', label: '🎯 Marketing', icon: '🎯' },
+            ].map(section => (
+              <button
+                key={section.id}
+                onClick={() => setActiveSection(section.id)}
+                className={`px-6 py-3 font-medium transition-all border-b-2 whitespace-nowrap ${
+                  activeSection === section.id
+                    ? 'border-green-500 text-green-400'
+                    : 'border-transparent text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                {section.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Search Bar with Icon */}
         <div className="mb-8">
           <div className="relative">
@@ -255,8 +283,11 @@ const AdminDashboard = ({ setCurrentPage }) => {
           </div>
         </div>
 
-        {/* Stats Grid - Modern Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        {/* Dashboard Section */}
+        {activeSection === 'dashboard' && (
+          <>
+            {/* Stats Grid - Modern Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           {/* Total Orders */}
           <div className="group relative bg-slate-800/40 backdrop-blur-sm border border-green-600/20 rounded-xl p-5 hover:border-green-500/50 hover:bg-slate-800/60 transition-all duration-300 shadow-xl hover:shadow-green-600/20">
             <div className="flex items-start justify-between">
@@ -419,6 +450,23 @@ const AdminDashboard = ({ setCurrentPage }) => {
             </div>
           </div>
         </div>
+          </>
+        )}
+
+        {/* Analytics Section */}
+        {activeSection === 'analytics' && (
+          <AnalyticsDashboard adminToken={adminToken} />
+        )}
+
+        {/* Inventory Section */}
+        {activeSection === 'inventory' && (
+          <InventoryManagement adminToken={adminToken} />
+        )}
+
+        {/* Marketing Section */}
+        {activeSection === 'marketing' && (
+          <MarketingManagement adminToken={adminToken} />
+        )}
 
       {/* Order Detail Modal */}
       {selected && (

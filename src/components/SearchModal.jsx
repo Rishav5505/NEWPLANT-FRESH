@@ -60,7 +60,7 @@ const SearchModal = ({ showSearch, setShowSearch, setCurrentPage, addToCart }) =
     <>
       {showSearch && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-20 p-4">
-          <div className="w-full max-w-2xl bg-[#0a1a12] border-2 border-green-600 rounded-3xl shadow-2xl overflow-hidden">
+          <div className="w-full max-w-2xl bg-[#071018] border-2 border-green-600 rounded-3xl shadow-2xl overflow-hidden">
             <div className="flex items-center gap-4 p-6 bg-green-900/20 border-b border-green-700">
               <input
                 type="text"

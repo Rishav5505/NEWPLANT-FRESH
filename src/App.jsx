@@ -18,7 +18,6 @@ import Profile from './pages/Profile';
 import { Routes, Route } from 'react-router-dom';
 import Contact from "./components/Contact";
 import Menu from "./components/Menu";
-import Notifications from "./components/Notifications";
 import Cart from "./components/Cart";
 import Shop from "./components/Shop";
 import About from "./components/About";
@@ -32,6 +31,7 @@ import CareGuides from "./components/CareGuides";
 import MyOrders from "./components/MyOrders";
 import Wishlist from "./components/Wishlist";
 import Wallet from "./components/Wallet";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState("home");
@@ -61,7 +61,8 @@ const App = () => {
   const cartCount = cartItems.reduce((s, it) => s + it.quantity, 0);
 
   return (
-    <div className="w-full bg-[#0a1a12] text-white overflow-x-hidden">
+    <ErrorBoundary>
+      <div className="w-full bg-[#071018] text-white overflow-x-hidden">
       {/* Gradient Background */}
       <div 
         className="fixed inset-0 -z-10"
@@ -72,7 +73,6 @@ const App = () => {
 
       {/* All Modals and Floating Buttons */}
       <Menu />
-      <Notifications />
 
       {/* Main Content */}
       <Navbar setCurrentPage={setCurrentPage} setShowCart={setShowCart} cartCount={cartCount} addToCart={addToCart} />
@@ -252,7 +252,8 @@ const App = () => {
           <Footer setCurrentPage={setCurrentPage} />
         </>
       )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

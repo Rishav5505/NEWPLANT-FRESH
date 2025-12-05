@@ -7,10 +7,15 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [showOtpFlow, setShowOtpFlow] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpMessage, setOtpMessage] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfilePhoto, setShowProfilePhoto] = useState(false);
   const [user, setUser] = useState(() => {
@@ -42,6 +47,17 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
       window.removeEventListener('open-signup', openSignup);
     };
   }, []);
+
+  // helper: request password reset
+  const requestPasswordReset = async (emailToUse) => {
+    try {
+      const resp = await fetch(`${API_BASE}/api/request-password-reset`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: emailToUse }) });
+      const data = await resp.json();
+      return { ok: resp.ok, data };
+    } catch (err) {
+      return { ok: false, data: { message: 'Network error' } };
+    }
+  };
 
   const handleProfilePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -75,9 +91,9 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
 
   return (
     <>
-      <nav className="w-full py-4 px-6 flex items-center justify-between bg-[#0a1a12]/80 backdrop-blur-md shadow-lg border-b border-green-700 sticky top-0 z-50">
+      <nav className="w-full py-4 px-6 flex items-center justify-between bg-[#071018] text-white backdrop-blur-sm shadow-sm border-b border-green-700 sticky top-0 z-50">
         
-        <h1 className="text-3xl font-bold text-green-400 flex items-center gap-2">
+        <h1 className="text-3xl font-bold text-green-300 flex items-center gap-2">
           🌿 Plants
         </h1>
 
@@ -97,7 +113,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
             readOnly
           />
           
-          <button onClick={() => setShowCart?.(true)} className="relative text-2xl hover:text-green-400 transition">
+          <button onClick={() => setShowCart?.(true)} className="relative text-2xl text-white hover:text-green-400 transition">
             🛒
             {cartCount > 0 && (
               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
@@ -123,7 +139,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
               </button>
 
               {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-64 bg-[#0a1a12] border-2 border-green-700 rounded-lg shadow-lg z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-64 bg-[#071018] border-2 border-green-700 rounded-lg shadow-lg z-50 overflow-hidden">
                   {/* Profile Section */}
                   <div className="bg-gradient-to-r from-green-900/30 to-green-800/30 p-4 border-b border-green-700">
                     <div className="flex items-center gap-3">
@@ -250,7 +266,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
       {/* Login Modal */}
       {showLogin && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0a1a12] border-2 border-green-600 rounded-3xl p-8 w-full max-w-md shadow-2xl">
+          <div className="bg-[#071018] border-2 border-green-600 rounded-3xl p-8 w-full max-w-md shadow-2xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-3xl font-bold text-green-400">🌿 Login</h2>
               <button onClick={() => setShowLogin(false)} className="text-3xl text-gray-400 hover:text-white">
@@ -309,82 +325,172 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
                   Sign Up
                 </button>
               </p>
+
+              <p className="text-center mt-2">
+                <button onClick={() => { setShowLogin(false); setShowForgot(true); }} className="text-sm text-yellow-300 hover:underline">Forgot password?</button>
+              </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Signup Modal */}
+      {/* Forgot Password Modal */}
+      {showForgot && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#071018] border-2 border-green-600 rounded-3xl p-8 w-full max-w-md shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-green-400">🔑 Forgot Password</h2>
+              <button onClick={() => setShowForgot(false)} className="text-3xl text-gray-400 hover:text-white">✕</button>
+            </div>
+
+            <div className="space-y-4">
+              <input type="email" placeholder="Enter your email" value={email} onChange={(e)=>setEmail(e.target.value)} className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition" />
+              <button onClick={async ()=>{
+                if (!email || !/^\S+@\S+\.\S+$/.test(email)) return alert('Enter valid email');
+                const resp = await requestPasswordReset(email);
+                alert(resp.data.message || (resp.ok? 'Token sent' : 'Failed'));
+              }} className="w-full py-3 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded-lg">Send reset code</button>
+
+              <p className="text-sm text-gray-400">After you receive the code, enter it below with your new password.</p>
+
+              <input type="text" placeholder="Reset code" value={otp} onChange={(e)=>setOtp(e.target.value)} className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition" />
+              <input type="password" placeholder="New password" value={password} onChange={(e)=>setPassword(e.target.value)} className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition" />
+
+              <button onClick={async ()=>{
+                if (!email || !otp || !password) return alert('Email, code and new password required');
+                try {
+                  const res = await fetch(`${API_BASE}/api/verify-reset-token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, token: otp, newPassword: password }) });
+                  const data = await res.json();
+                  if (!res.ok) return alert(data.message || 'Reset failed');
+                  alert('Password updated. You can now login.');
+                  setShowForgot(false); setPassword(''); setOtp('');
+                } catch (err) { alert('Network error'); }
+              }} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg">Verify & Reset</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Signup Modal (regular signup OR OTP flow) */}
       {showSignup && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0a1a12] border-2 border-green-600 rounded-3xl p-8 w-full max-w-md shadow-2xl">
+          <div className="bg-[#071018] border-2 border-green-600 rounded-3xl p-8 w-full max-w-md shadow-2xl">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-3xl font-bold text-green-400">🌱 Sign Up</h2>
-              <button onClick={() => setShowSignup(false)} className="text-3xl text-gray-400 hover:text-white">
+              <h2 className="text-3xl font-bold text-green-400">{showOtpFlow ? '🔐 Sign Up with OTP' : '🌱 Sign Up'}</h2>
+              <button onClick={() => { setShowSignup(false); setShowOtpFlow(false); }} className="text-3xl text-gray-400 hover:text-white">
                 ✕
               </button>
             </div>
 
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Enter your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition"
-              />
+            {!showOtpFlow ? (
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="Enter your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition"
+                />
 
-              <input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition"
-              />
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition"
+                />
 
-              <input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition"
-              />
+                <input
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition"
+                />
 
-              <button onClick={async () => {
-                try {
-                  const resp = await fetch(`${API_BASE}/api/signup`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password }),
-                  });
-                  const data = await resp.json();
-                  if (!data.success) return alert(data.message || 'Signup failed');
-                  localStorage.setItem('auth_token', data.token);
-                  localStorage.setItem('auth_user', JSON.stringify(data.user));
-                  setUser(data.user);
-                  setShowSignup(false);
-                  setName(''); setEmail(''); setPassword('');
-                } catch (err) {
-                  console.error(err);
-                  alert('Signup error');
-                }
-              }} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition transform hover:scale-105">
-                ✓ Create Account
-              </button>
-
-              <p className="text-center text-gray-400">
-                Already have an account?{" "}
-                <button
-                  onClick={() => {
-                    setShowSignup(false);
-                    setShowLogin(true);
-                  }}
-                  className="text-green-400 hover:text-green-300 font-bold"
-                >
-                  Login
+                <button onClick={async () => {
+                  // New flow: when user clicks Create Account, send OTP to provided email first,
+                  // then show the OTP input step (we will pass name+password when verifying)
+                  if (!email || !/^\S+@\S+\.\S+$/.test(email)) { alert('Enter a valid email'); return; }
+                  setOtpMessage(''); setOtp(''); setShowOtpFlow(true);
+                  try {
+                    const resp = await fetch(`${API_BASE}/api/request-otp`, {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email })
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok) setOtpMessage(data.message || 'Failed to send OTP'); else setOtpMessage('OTP sent — check your email');
+                  } catch (err) {
+                    console.error('request-otp error', err);
+                    setOtpMessage('Network error while sending OTP');
+                  }
+                }} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition transform hover:scale-105">
+                  ✓ Create Account
                 </button>
-              </p>
-            </div>
+
+                <div className="flex gap-2">
+                  <button onClick={() => { setShowSignup(false); setShowLogin(true); }} className="w-1/2 py-3 bg-gray-700 text-white rounded-lg">Already have account</button>
+                </div>
+
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition"
+                />
+
+                <div className="flex gap-2">
+                  <button onClick={async () => {
+                    if (!email || !/^\S+@\S+\.\S+$/.test(email)) { setOtpMessage('Enter a valid email'); return; }
+                    setOtpLoading(true); setOtpMessage('');
+                    try {
+                      const resp = await fetch(`${API_BASE}/api/request-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+                      const data = await resp.json();
+                      if (!resp.ok) setOtpMessage(data.message || 'Failed to send OTP'); else setOtpMessage('OTP sent — check your email');
+                    } catch (err) { setOtpMessage('Network error'); }
+                    setOtpLoading(false);
+                  }} className="w-1/2 py-3 bg-green-600 hover:bg-green-500 text-white rounded-lg">Send OTP</button>
+
+                  <button onClick={() => { setShowOtpFlow(false); setOtpMessage(''); }} className="w-1/2 py-3 bg-gray-700 text-white rounded-lg">Back</button>
+                </div>
+
+                <input
+                  type="text"
+                  placeholder="Enter OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  className="w-full px-4 py-3 bg-[#0b2a1a] border border-green-700 rounded-lg text-white outline-none focus:border-green-400 transition"
+                />
+
+                <div className="flex gap-2">
+                  <button onClick={async () => {
+                    if (!otp || otp.length < 4) { setOtpMessage('Enter OTP'); return; }
+                    setOtpLoading(true); setOtpMessage('');
+                    try {
+                      // send name and password along so server can create user with provided data
+                      const resp = await fetch(`${API_BASE}/api/verify-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otp, name, password }) });
+                      const data = await resp.json();
+                      if (!resp.ok) { setOtpMessage(data.message || 'OTP verification failed'); }
+                      else {
+                        if (data.token) localStorage.setItem('auth_token', data.token);
+                        if (data.user) { localStorage.setItem('auth_user', JSON.stringify(data.user)); setUser(data.user); }
+                        setOtpMessage('Verified!');
+                        setShowOtpFlow(false); setShowSignup(false);
+                        setName(''); setEmail(''); setPassword(''); setOtp('');
+                      }
+                    } catch (err) { setOtpMessage('Network error'); }
+                    setOtpLoading(false);
+                  }} className="w-1/2 py-3 bg-green-600 hover:bg-green-500 text-white rounded-lg">Verify OTP</button>
+                  <button onClick={() => { setOtp(''); setOtpMessage(''); }} className="w-1/2 py-3 bg-gray-700 text-white rounded-lg">Clear</button>
+                </div>
+
+                {otpMessage && <p className="text-sm text-yellow-300 mt-2">{otpMessage}</p>}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -392,7 +498,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
       {/* Profile Photo Upload Modal */}
       {showProfilePhoto && user && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0a1a12] border-2 border-green-600 rounded-3xl p-8 w-full max-w-md shadow-2xl">
+          <div className="bg-[#071018] border-2 border-green-600 rounded-3xl p-8 w-full max-w-md shadow-2xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-3xl font-bold text-green-400">📷 Upload Photo</h2>
               <button onClick={() => setShowProfilePhoto(false)} className="text-3xl text-gray-400 hover:text-white">
