@@ -8,7 +8,6 @@ const jwt = require('jsonwebtoken');
 const User = require('./models/User');
 const Order = require('./models/Order');
 const Message = require('./models/Message');
-const Otp = require('./models/Otp');
 const Plant = require('./models/Plant');
 const { syncCSVToDatabase, resyncCSV, watchCSVFile, stopWatchingCSVFile } = require('./utils/csvSync');
 
@@ -34,20 +33,8 @@ async function start() {
     
     // Sync CSV data to database on startup
     console.log('Starting CSV to database sync...');
-    const syncIndoor = await syncCSVToDatabase('indoor');
-    console.log('Indoor Plants Sync Result:', syncIndoor);
-    
-    const syncFlowering = await syncCSVToDatabase('flowering');
-    console.log('Flowering Plants Sync Result:', syncFlowering);
-    
-    const syncPlanters = await syncCSVToDatabase('planters');
-    console.log('Planters Sync Result:', syncPlanters);
-    
-    const syncCareKits = await syncCSVToDatabase('care-kits');
-    console.log('Care Kits Sync Result:', syncCareKits);
-    
-    const syncOutdoor = await syncCSVToDatabase('outdoor');
-    console.log('Outdoor Plants Sync Result:', syncOutdoor);
+    const syncResult = await syncCSVToDatabase('indoor');
+      console.log('CSV Sync Result:', syncResult);
     
     // Start watching CSV file for real-time updates
     watchCSVFile();
@@ -58,7 +45,6 @@ async function start() {
   // Signup
   app.post('/api/signup', async (req, res) => {
     try {
-      const bcrypt = require('bcryptjs');
       const { name, email, password } = req.body;
       if (!name || !email || !password) return res.status(400).json({ success: false, message: 'Missing fields' });
 
@@ -82,7 +68,6 @@ async function start() {
   // Login
   app.post('/api/login', async (req, res) => {
     try {
-      const bcrypt = require('bcryptjs');
       const { email, password } = req.body;
       if (!email || !password) return res.status(400).json({ success: false, message: 'Missing fields' });
 
@@ -281,7 +266,6 @@ async function start() {
   // Get all indoor plants (from CSV sync)
   app.get('/api/plants/indoor', async (req, res) => {
     try {
-      const bcrypt = require('bcryptjs');
       const plants = await Plant.find({ category: 'indoor' }).sort({ createdAt: -1 });
       return res.json({ success: true, plants });
     } catch (err) {
@@ -311,7 +295,6 @@ async function start() {
   // Get single plant by ID
   app.get('/api/plants/detail/:id', async (req, res) => {
     try {
-      const bcrypt = require('bcryptjs');
       const plant = await Plant.findById(req.params.id);
       if (!plant) return res.status(404).json({ success: false, message: 'Plant not found' });
       return res.json({ success: true, plant });
@@ -425,9 +408,7 @@ async function start() {
   // Admin: Resync CSV to database
   app.post('/api/admin/plants/resync-csv', requireAdmin, async (req, res) => {
     try {
-      const { category } = req.body;
-      const catToSync = category || 'indoor'; // default to indoor if not specified
-      const result = await resyncCSV(catToSync);
+      const result = await resyncCSV();
       return res.json(result);
     } catch (err) {
       console.error(err);
@@ -449,7 +430,6 @@ async function start() {
   // Admin: Create/Add a plant manually (non-CSV)
   app.post('/api/admin/plants', requireAdmin, async (req, res) => {
     try {
-      const bcrypt = require('bcryptjs');
       const { name, category, salePrice, oldPrice, description, imageUrl } = req.body;
       
       if (!name || !category || !salePrice) {
@@ -577,7 +557,6 @@ async function start() {
   // Confirm payment for an order (protected) - mock endpoint to mark order as paid
   app.post('/api/orders/:id/confirm-payment', async (req, res) => {
     try {
-      const bcrypt = require('bcryptjs');
       const auth = req.headers.authorization;
       if (!auth) return res.status(401).json({ success: false, message: 'Missing token' });
       const token = auth.split(' ')[1];
@@ -624,263 +603,4 @@ async function start() {
   });
 }
 
-// transporter will be initialized below (after env vars and nodemailer are available)
-
-const rateLimit = require('express-rate-limit');
-
-// simple email validator
-function isValidEmail(email) {
-  return typeof email === 'string' && /^\S+@\S+\.\S+$/.test(email);
-}
-
-// rate limiter keyed by IP + email to avoid abuse
-const otpRequestLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5,
-  message: { success: false, message: 'Too many OTP requests, try again later' },
-  keyGenerator: (req) => {
-    const email = req.body && req.body.email ? String(req.body.email).toLowerCase() : '';
-    return `${req.ip}|${email}`;
-  }
-});
-
-// Nodemailer transporter (configured via env)
-const nodemailer = require('nodemailer');
-const {
-  SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
-} = process.env;
-
-let transporter = null;
-let usingTestAccount = false;
-async function initTransporter() {
-  if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-    transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: Number(SMTP_PORT) || 465,
-      secure: Number(SMTP_PORT) === 465,
-      auth: { user: SMTP_USER, pass: SMTP_PASS }
-    });
-    console.log('Using SMTP transporter from environment variables');
-  } else {
-    try {
-      console.warn('SMTP not configured; creating a Nodemailer test account for OTP delivery (ethereal.email)');
-      const testAccount = await nodemailer.createTestAccount();
-      transporter = nodemailer.createTransport({
-        host: testAccount.smtp.host,
-        port: testAccount.smtp.port,
-        secure: testAccount.smtp.secure,
-        auth: { user: testAccount.user, pass: testAccount.pass }
-      });
-      usingTestAccount = true;
-      console.log('Created Nodemailer test account. Emails will be available via preview URL in server logs.');
-    } catch (err) {
-      console.warn('Failed to create Nodemailer test account. OTP emails will be logged to console instead.');
-      transporter = null;
-    }
-  }
-}
-
-// initialize transporter (test account fallback) now that env vars are available
-initTransporter().catch((err) => {
-  console.error('initTransporter error', err);
-});
-
-// Request OTP
-app.post('/api/request-otp', otpRequestLimiter, async (req, res) => {
-  try {
-    const { email } = req.body || {};
-    if (!email || !isValidEmail(email)) return res.status(400).json({ success: false, message: 'Invalid email' });
-    const normalized = String(email).toLowerCase().trim();
-
-    // optional: check recent OTP and prevent spam
-    const recent = await Otp.findOne({ email: normalized }).sort({ createdAt: -1 });
-    if (recent && recent.expiresAt > new Date()) {
-      console.log('OTP already recently generated for', normalized);
-      return res.status(429).json({ success: false, message: 'OTP recently sent, please wait a few minutes' });
-    }
-
-    // generate 6-digit code
-    const code = (Math.floor(100000 + Math.random() * 900000)).toString();
-    const salt = await bcrypt.genSalt(10);
-    const otpHash = await bcrypt.hash(code, salt);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    await Otp.create({ email: normalized, otpHash, expiresAt });
-
-    // send email if transporter available
-    if (transporter) {
-      const mail = {
-        from: SMTP_FROM || SMTP_USER || 'no-reply@example.com',
-        to: normalized,
-        subject: 'Your OTP for signing in',
-        text: `Your OTP is ${code}. It expires in 10 minutes.`,
-        html: `<p>Your OTP is <strong>${code}</strong>. It expires in 10 minutes.</p>`
-      };
-      try {
-        const info = await transporter.sendMail(mail);
-        console.log('OTP email sent:', info && (info.messageId || info.response));
-        if (usingTestAccount) {
-          const preview = nodemailer.getTestMessageUrl(info);
-          if (preview) console.log('Preview URL (ethereal):', preview);
-        }
-      } catch (err) {
-        console.error('Error sending OTP email', err);
-        // as a fallback still log the OTP code so developer can test
-        console.log('OTP (fallback log):', code);
-      }
-    } else {
-      console.log('OTP (no transporter):', code);
-    }
-
-    return res.json({ success: true, message: 'OTP sent' });
-  } catch (err) {
-    console.error('request-otp error', err);
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Verify OTP
-app.post('/api/verify-otp', async (req, res) => {
-  try {
-    // Accept optional name and password from client so newly created users can keep their chosen name/password.
-    const { email, otp, name: providedName, password: providedPassword } = req.body || {};
-    if (!email || !otp || !isValidEmail(email)) return res.status(400).json({ success: false, message: 'Email and OTP required' });
-    const normalized = String(email).toLowerCase().trim();
-
-    const record = await Otp.findOne({ email: normalized }).sort({ createdAt: -1 });
-    if (!record) return res.status(400).json({ success: false, message: 'OTP not found or expired' });
-    if (record.expiresAt < new Date()) {
-      await Otp.findByIdAndDelete(record._id).catch(()=>{});
-      return res.status(400).json({ success: false, message: 'OTP expired' });
-    }
-
-    const match = await bcrypt.compare(String(otp), record.otpHash);
-    if (!match) return res.status(401).json({ success: false, message: 'Invalid OTP' });
-
-    // create user if not exists - use provided name and password if present
-    let user = await User.findOne({ email: normalized });
-    if (!user) {
-      let hashed = null;
-      if (providedPassword) {
-        try {
-          hashed = await bcrypt.hash(providedPassword, 10);
-        } catch (e) {
-          console.error('Password hashing error during OTP user creation', e);
-        }
-      }
-      const nameToUse = providedName || normalized.split('@')[0];
-      const passwordToUse = hashed || (await bcrypt.hash(Math.random().toString(36).slice(2, 12), 10));
-      user = new User({ name: nameToUse, email: normalized, password: passwordToUse });
-      await user.save();
-      console.log('Created user via OTP:', normalized);
-    } else {
-      // If user exists but client provided a name and user has no name, update it
-      if (providedName && (!user.name || user.name === '') ) {
-        user.name = providedName;
-        await user.save();
-      }
-    }
-
-    // delete OTP record
-    await Otp.findByIdAndDelete(record._id).catch(()=>{});
-
-    // sign JWT
-    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-
-    const out = user.toObject();
-    delete out.password;
-    return res.json({ success: true, message: 'Verified', token, user: out });
-  } catch (err) {
-    console.error('verify-otp error', err);
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// --- Password reset flow ---
-// Request password reset (sends token via email)
-app.post('/api/request-password-reset', async (req, res) => {
-  try {
-    const { email } = req.body || {};
-    if (!email || !isValidEmail(email)) return res.status(400).json({ success: false, message: 'Invalid email' });
-    const normalized = String(email).toLowerCase().trim();
-
-    const user = await User.findOne({ email: normalized });
-    if (!user) return res.status(404).json({ success: false, message: 'Email not found' });
-
-    // generate secure token
-    const crypto = require('crypto');
-    const token = crypto.randomBytes(24).toString('hex');
-    const salt = await bcrypt.genSalt(10);
-    const tokenHash = await bcrypt.hash(token, salt);
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-    // store token in Otp collection (reusing model)
-    await Otp.create({ email: normalized, otpHash: tokenHash, expiresAt });
-
-    // send email with token (or link)
-    const mail = {
-      from: SMTP_FROM || SMTP_USER || 'no-reply@example.com',
-      to: normalized,
-      subject: 'Password reset for your account',
-      text: `Use the following code to reset your password: ${token} (valid for 1 hour)`,
-      html: `<p>Use the following code to reset your password: <strong>${token}</strong> (valid for 1 hour)</p>`
-    };
-
-    try {
-      if (transporter) {
-        const info = await transporter.sendMail(mail);
-        console.log('Password reset email sent:', info && (info.messageId || info.response));
-        if (usingTestAccount) {
-          const preview = nodemailer.getTestMessageUrl(info);
-          if (preview) console.log('Preview URL (ethereal):', preview);
-        }
-      } else {
-        console.log('Password reset token (no transporter):', token);
-      }
-    } catch (err) {
-      console.error('Error sending password reset email', err);
-      // still proceed but inform client
-      return res.status(500).json({ success: false, message: 'Failed to send reset email' });
-    }
-
-    return res.json({ success: true, message: 'Password reset token sent' });
-  } catch (err) {
-    console.error('request-password-reset error', err);
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Verify reset token and set new password
-app.post('/api/verify-reset-token', async (req, res) => {
-  try {
-    const { email, token, newPassword } = req.body || {};
-    if (!email || !token || !newPassword || !isValidEmail(email)) return res.status(400).json({ success: false, message: 'Email, token and new password required' });
-    const normalized = String(email).toLowerCase().trim();
-
-    const record = await Otp.findOne({ email: normalized }).sort({ createdAt: -1 });
-    if (!record) return res.status(400).json({ success: false, message: 'Reset token not found or expired' });
-    if (record.expiresAt < new Date()) {
-      await Otp.findByIdAndDelete(record._id).catch(()=>{});
-      return res.status(400).json({ success: false, message: 'Reset token expired' });
-    }
-
-    const match = await bcrypt.compare(String(token), record.otpHash);
-    if (!match) return res.status(401).json({ success: false, message: 'Invalid token' });
-
-    const user = await User.findOne({ email: normalized });
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-    const hashed = await bcrypt.hash(newPassword, 10);
-    user.password = hashed;
-    await user.save();
-
-    // delete token
-    await Otp.findByIdAndDelete(record._id).catch(()=>{});
-
-    return res.json({ success: true, message: 'Password updated' });
-  } catch (err) {
-    console.error('verify-reset-token error', err);
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
 start();
