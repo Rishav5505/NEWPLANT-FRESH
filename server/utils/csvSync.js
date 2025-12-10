@@ -192,4 +192,4 @@ function stopWatchingCSVFile() {
   console.log('🛑 All file watchers stopped');
 }
 
-module.exports = { syncCSVToDatabase, resyncCSV, watchCSVFile, stopWatchingCSVFile };
+module.exports = { syncCSVToDatabase, resyncCSV, watchCSVFile, stopWatchingCSVFile, CSV_PATHS };
