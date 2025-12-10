@@ -564,7 +564,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
                   <div>
                     <p className="text-xs text-gray-400 mb-2 uppercase font-medium">Update Status</p>
                     <div className="flex gap-2 flex-wrap">
-                      {['processing', 'shipped', 'delivered'].map(status => (
+                      {['processing', 'shipped'].map(status => (
                         <button 
                           key={status}
                           onClick={() => updateOrder(selected._id, { status })}
@@ -573,6 +573,13 @@ const AdminDashboard = ({ setCurrentPage }) => {
                           {status.charAt(0).toUpperCase() + status.slice(1)}
                         </button>
                       ))}
+                      <button 
+                        onClick={() => updateOrder(selected._id, { status: 'delivered' })}
+                        className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 text-white text-sm rounded-lg transition-all font-semibold"
+                        title="Mark as Delivered & Send Invoice Email to Customer"
+                      >
+                        ✅ Deliver & Send Invoice
+                      </button>
                     </div>
                   </div>
                   <div>

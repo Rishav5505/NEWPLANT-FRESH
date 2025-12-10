@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import SearchModal from "./SearchModal";
+import LogoImg from "../assets/logo2.jpg";
 
 // Use Vite env variable (must be prefixed with VITE_) when building with Vite.
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
@@ -93,9 +94,13 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
     <>
       <nav className="w-full py-4 px-6 flex items-center justify-between bg-[#071018] text-white backdrop-blur-sm shadow-sm border-b border-green-700 sticky top-0 z-50">
         
-        <h1 className="text-3xl font-bold text-green-300 flex items-center gap-2">
-          🌿 Plants
-        </h1>
+        <div className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition" onClick={() => setCurrentPage?.("home")}>
+          <img src={LogoImg} alt="jeevaLeaf Logo" className="h-16 w-16 rounded-full object-cover shadow-lg" />
+          <div className="flex flex-col items-start">
+            <span className="text-2xl font-bold" style={{ color: '#E6C676' }}>JeevaLeaf</span>
+            <span className="text-xs font-semibold" style={{ color: '#E6C676' }}>Bring life in our home</span>
+          </div>
+        </div>
 
         <ul className="hidden md:flex items-center gap-8 text-lg">
           <li onClick={() => setCurrentPage?.("home")} className="hover:text-green-400 cursor-pointer transition">Home</li>
@@ -472,7 +477,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
                     setOtpLoading(true); setOtpMessage('');
                     try {
                       // send name and password along so server can create user with provided data
-                      const resp = await fetch(`${API_BASE}/api/verify-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otp, name, password }) });
+                      const resp = await fetch(`${API_BASE}/api/verify-otp-signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otp, name, password }) });
                       const data = await resp.json();
                       if (!resp.ok) { setOtpMessage(data.message || 'OTP verification failed'); }
                       else {

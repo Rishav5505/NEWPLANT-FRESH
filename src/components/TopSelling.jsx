@@ -1,5 +1,12 @@
 import React, { useState } from "react";
 import { formatINRFromUSD } from "../utils/priceUtils";
+import Product from "./Product";
+import R1 from "../assets/r1.jpg";
+import R2 from "../assets/r2.jpg";
+import R3 from "../assets/r3.jpg";
+import R4 from "../assets/r4.jpg";
+import R5 from "../assets/r5.jpg";
+import R6 from "../assets/r6.jpg";
 
 const plants = [
   { 
@@ -8,8 +15,8 @@ const plants = [
     price: 35.99, 
     rating: 4.8,
     reviews: 156,
-    emoji: "🌿",
-    image: "https://images.pexels.com/photos/4488995/pexels-photo-4488995.jpeg?auto=compress&cs=tinysrgb&w=600",
+    
+    image: R1,
     description: "Beautiful tropical plant with stunning patterned leaves",
     features: ["Low maintenance", "Air purifying", "Pet-friendly"]
   },
@@ -19,8 +26,8 @@ const plants = [
     price: 45.99, 
     rating: 4.9,
     reviews: 234,
-    emoji: "🍃",
-    image: "https://images.pexels.com/photos/3944441/pexels-photo-3944441.jpeg?auto=compress&cs=tinysrgb&w=600",
+    
+    image: R2,
     description: "Popular Swiss cheese plant perfect for any room",
     features: ["Fast growing", "Statement plant", "Easy care"]
   },
@@ -30,8 +37,8 @@ const plants = [
     price: 29.99, 
     rating: 4.7,
     reviews: 189,
-    emoji: "🌱",
-    image: "https://images.pexels.com/photos/3952857/pexels-photo-3952857.jpeg?auto=compress&cs=tinysrgb&w=600",
+   
+    image: R3,
     description: "Hardy succulent that thrives in any light condition",
     features: ["Very hardy", "Low water", "Oxygen producer"]
   },
@@ -41,8 +48,8 @@ const plants = [
     price: 55.99, 
     rating: 4.6,
     reviews: 142,
-    emoji: "🍂",
-    image: "https://images.pexels.com/photos/3970042/pexels-photo-3970042.jpeg?auto=compress&cs=tinysrgb&w=600",
+   
+    image: R4,
     description: "Stunning floor plant that makes a bold statement",
     features: ["Elegant", "Statement piece", "Indoor tree"]
   },
@@ -52,8 +59,8 @@ const plants = [
     price: 25.99, 
     rating: 4.9,
     reviews: 312,
-    emoji: "🌲",
-    image: "https://images.pexels.com/photos/3807517/pexels-photo-3807517.jpeg?auto=compress&cs=tinysrgb&w=600",
+    
+    image: R5,
     description: "Climbing vine perfect for shelves and hanging baskets",
     features: ["Trainable", "Fast grower", "Air clean"]
   },
@@ -63,8 +70,8 @@ const plants = [
     price: 65.99, 
     rating: 4.8,
     reviews: 98,
-    emoji: "🦜",
-    image: "https://images.pexels.com/photos/3933006/pexels-photo-3933006.jpeg?auto=compress&cs=tinysrgb&w=600",
+   
+    image: R6,
     description: "Exotic flowering plant with vibrant orange blooms",
     features: ["Exotic", "Blooming", "Tropical vibe"]
   },
@@ -72,6 +79,7 @@ const plants = [
 
 const TopSelling = ({ addToCart }) => {
   const [hoveredId, setHoveredId] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   return (
     <section className="px-0 py-16 bg-gradient-to-b from-transparent to-green-950/10">
@@ -82,21 +90,22 @@ const TopSelling = ({ addToCart }) => {
         </h2>
         <p className="text-center text-gray-300 mb-12 text-lg">Choose from our premium collection of healthy, handpicked plants</p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {plants.map((p) => (
             <div 
               key={p.id} 
-              className="group relative bg-gradient-to-br from-green-900/20 to-black/40 border border-green-700 p-4 rounded-2xl backdrop-blur-md hover:border-green-500 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl cursor-pointer"
+              onClick={() => setSelectedProduct?.(p)}
+              className="group relative bg-gradient-to-br from-green-900/20 to-black/40 border border-green-700 p-6 rounded-2xl backdrop-blur-md hover:border-green-500 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl cursor-pointer"
               onMouseEnter={() => setHoveredId(p.id)}
               onMouseLeave={() => setHoveredId(null)}
             >
               {/* Discount Badge */}
-              <div className="absolute top-3 right-3 bg-red-500/80 text-white px-2 py-1 rounded-full text-xs font-bold z-10">
+              <div className="absolute top-4 right-4 bg-red-500/80 text-white px-3 py-2 rounded-full text-sm font-bold z-10">
                 -15%
               </div>
 
               {/* Plant Image */}
-              <div className="w-full h-32 bg-gradient-to-b from-green-600/10 to-emerald-700/20 rounded-xl mb-3 border border-green-600/30 group-hover:border-green-500/60 transition relative overflow-hidden flex items-center justify-center">
+              <div className="w-full h-56 bg-gradient-to-b from-green-600/10 to-emerald-700/20 rounded-xl mb-4 border border-green-600/30 group-hover:border-green-500/60 transition relative overflow-hidden flex items-center justify-center">
                 <img 
                   src={p.image} 
                   alt={p.name}
@@ -111,33 +120,33 @@ const TopSelling = ({ addToCart }) => {
               </div>
 
               {/* Plant Info */}
-              <h3 className="text-lg font-bold mb-1 text-white line-clamp-2">{p.name}</h3>
-              <p className="text-gray-300 text-xs mb-2 line-clamp-2">{p.description}</p>
+              <h3 className="text-xl font-bold mb-2 text-white line-clamp-2">{p.name}</h3>
+              <p className="text-gray-300 text-sm mb-3 line-clamp-2">{p.description}</p>
 
               {/* Rating */}
-              <div className="flex items-center gap-1 mb-2">
-                <span className="text-yellow-400 text-sm">⭐ {p.rating}</span>
-                <span className="text-gray-400 text-xs">({p.reviews})</span>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-yellow-400 text-base">⭐ {p.rating}</span>
+                <span className="text-gray-400 text-sm">({p.reviews})</span>
               </div>
 
               {/* Features */}
-              <div className="mb-3 flex flex-wrap gap-1">
+              <div className="mb-4 flex flex-wrap gap-2">
                 {p.features.slice(0, 2).map((feature, idx) => (
-                  <span key={idx} className="text-xs bg-green-700/30 text-green-300 px-2 py-0.5 rounded-full border border-green-600/50">
+                  <span key={idx} className="text-sm bg-green-700/30 text-green-300 px-3 py-1 rounded-full border border-green-600/50">
                     {feature}
                   </span>
                 ))}
               </div>
 
               {/* Price and Button */}
-              <div className="flex justify-between items-center pt-2 border-t border-green-700/50">
+              <div className="flex justify-between items-center pt-3 border-t border-green-700/50">
                 <div>
-                  <p className="text-gray-400 line-through text-xs">{formatINRFromUSD(p.price * 1.15)}</p>
-                  <p className="text-lg font-bold text-green-400">{formatINRFromUSD(p.price)}</p>
+                  <p className="text-gray-400 line-through text-sm">{formatINRFromUSD(p.price * 1.15)}</p>
+                  <p className="text-2xl font-bold text-green-400">{formatINRFromUSD(p.price)}</p>
                 </div>
                 <button
-                  onClick={() => addToCart?.({ id: p.id, name: p.name, price: p.price, emoji: p.emoji })}
-                  className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold transition transform hover:scale-110 text-sm"
+                  onClick={(e) => { e.stopPropagation(); addToCart?.({ id: p.id, name: p.name, price: p.price, emoji: p.emoji }); }}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold transition transform hover:scale-110 text-base"
                 >
                   🛒 Add
                 </button>
@@ -150,6 +159,17 @@ const TopSelling = ({ addToCart }) => {
             </div>
           ))}
         </div>
+
+        {selectedProduct && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedProduct(null)} />
+            <div className="relative w-full max-w-4xl mx-auto overflow-auto" style={{ maxHeight: '90vh' }}>
+              <div className="rounded-lg overflow-hidden">
+                <Product product={selectedProduct} addToCart={addToCart} onClose={() => setSelectedProduct(null)} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
     </section>
@@ -157,3 +177,4 @@ const TopSelling = ({ addToCart }) => {
 };
 
 export default TopSelling;
+

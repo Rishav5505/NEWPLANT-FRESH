@@ -4,15 +4,197 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
 
 const User = require('./models/User');
 const Order = require('./models/Order');
 const Message = require('./models/Message');
 const Plant = require('./models/Plant');
+const Review = require('./models/Review');
+const Otp = require('./models/Otp');
 const { syncCSVToDatabase, resyncCSV, watchCSVFile, stopWatchingCSVFile } = require('./utils/csvSync');
+const { getStatusEmailHTML } = require('./utils/emailTemplates');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+  // Mail transporter (initialized synchronously for immediate use)
+  let transporter = null;
+  const SMTP_FROM = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@jeevaleaf.com';
+  
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const smtpPort = Number(process.env.SMTP_PORT) || 587;
+    const isSecure = smtpPort === 465 || process.env.SMTP_SECURE === 'true';
+    
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: smtpPort,
+      secure: isSecure,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+    console.log(`✅ Mail transporter initialized - Host: ${process.env.SMTP_HOST}, Port: ${smtpPort}, Secure: ${isSecure}`);
+  } else {
+    console.warn('⚠️ SMTP not configured - no emails will be sent');
+  }
+
+// Generate invoice PDF buffer for an order
+function generateInvoiceBuffer(order) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 30 });
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+
+      const left = doc.x;
+      const right = doc.page.width - doc.page.margins.right;
+      const usableWidth = right - left;
+
+      // Top header: logo left, company info center-left, QR & invoice box right
+      const logoPath = path.resolve(__dirname, '..', 'src', 'assets', 'logo2.jpg');
+      if (fs.existsSync(logoPath)) {
+        try { doc.image(logoPath, left, doc.y, { width: 90, height: 90 }); } catch (e) { console.warn('Logo embed failed', e.message); }
+      }
+
+      // Company details (mimic attached layout)
+      const companyX = left + 100;
+      doc.fontSize(14).fillColor('#000').text('Suri Consumer Private Limited', companyX, doc.y - 4);
+      doc.fontSize(8).fillColor('#222').text('Ship-from Address: Suriwarehousings Pvt. Ltd., Hadbast No. 23, Village Sampka, Tehsil Faridnagar, District - Gurgaon, Haryana - 122015', companyX, doc.y + 10, { width: usableWidth - 220 });
+      doc.moveDown(0.1);
+      doc.fontSize(9).fillColor('#000').text('GSTIN - 06ABCDS9580N1ZL', companyX, doc.y + 2);
+
+      // Right-side invoice box (with QR placeholder above)
+      const boxW = 220;
+      const boxX = right - boxW;
+      // QR placeholder
+      doc.rect(boxX, left, 80, 80).stroke('#000');
+      // Invoice box
+      doc.rect(boxX + 90, left + 6, boxW - 90, 60).stroke('#000');
+      doc.fontSize(9).fillColor('#000').text('Invoice Number #', boxX + 95, left + 12);
+      doc.fontSize(11).fillColor('#000').text(order.invoiceNumber || `INV${String(order._id).slice(-8)}`, boxX + 95, left + 30);
+
+      doc.moveDown(2);
+      doc.moveTo(left, doc.y).lineTo(right, doc.y).stroke('#000');
+
+      // Meta and Bill/Ship columns
+      const metaY = doc.y + 8;
+      doc.fontSize(9).fillColor('#000').text(`Order ID: ${order._id}`, left, metaY);
+      doc.fontSize(9).fillColor('#000').text(`Order Date: ${new Date(order.createdAt || Date.now()).toLocaleDateString()}`, left + 200, metaY);
+      doc.fontSize(9).fillColor('#000').text(`Invoice Date: ${new Date(order.createdAt || Date.now()).toLocaleDateString()}`, left + 380, metaY);
+
+      doc.moveDown(1.2);
+
+      // Bill To / Ship To columns (two columns)
+      const halfW = (usableWidth - 10) / 2;
+      const billTop = doc.y;
+      doc.fontSize(9).fillColor('#000').text('Bill To:', left, billTop);
+      doc.fontSize(9).fillColor('#333').text(order.deliveryName || 'N/A', left, doc.y + 12);
+      doc.fontSize(8).fillColor('#555').text(order.deliveryAddress || 'N/A', left, doc.y + 26, { width: halfW });
+
+      doc.fontSize(9).fillColor('#000').text('Ship To:', left + halfW + 10, billTop);
+      doc.fontSize(9).fillColor('#333').text(order.deliveryName || 'N/A', left + halfW + 10, doc.y + 12);
+      doc.fontSize(8).fillColor('#555').text(order.deliveryAddress || 'N/A', left + halfW + 10, doc.y + 26, { width: halfW });
+
+      doc.moveDown(2);
+
+      // Table header matching attached image columns
+      const tableTop = doc.y;
+      const cols = {
+        product: left,
+        title: left + 110,
+        qty: left + 330,
+        gross: left + 370,
+        discount: left + 440,
+        taxable: left + 520,
+        sgst: left + 590,
+        cgst: left + 650,
+        total: left + 710
+      };
+
+      doc.fontSize(8.5).fillColor('#000').text('Product', cols.product, tableTop);
+      doc.text('Title', cols.title, tableTop);
+      doc.text('Qty', cols.qty, tableTop, { width: 30, align: 'right' });
+      doc.text('Gross Amount ₹', cols.gross, tableTop, { width: 60, align: 'right' });
+      doc.text('Discounts / Coupons ₹', cols.discount, tableTop, { width: 60, align: 'right' });
+      doc.text('Taxable Value ₹', cols.taxable, tableTop, { width: 60, align: 'right' });
+      doc.text('SGST ₹', cols.sgst, tableTop, { width: 40, align: 'right' });
+      doc.text('CGST ₹', cols.cgst, tableTop, { width: 40, align: 'right' });
+      doc.text('Total ₹', cols.total, tableTop, { width: 60, align: 'right' });
+
+      doc.moveDown(0.5);
+      doc.moveTo(left, doc.y).lineTo(right, doc.y).stroke('#ccc');
+
+      const items = Array.isArray(order.items) ? order.items : [];
+      let itemsCount = 0;
+      items.forEach((it) => {
+        itemsCount += 1;
+        const prod = it.sku || it.name || 'Product';
+        const title = it.title || it.name || '';
+        const qty = Number(it.quantity || 1);
+        const price = Number(it.price || it.salePrice || 0);
+        const gross = price * qty;
+        const discount = Number(it.discount || 0) || 0;
+        const taxable = gross - discount;
+        const sgst = Number(((order.tax || 0) / 2).toFixed(2)) || 0;
+        const cgst = sgst;
+        const rowTotal = taxable + sgst + cgst;
+
+        const rowY = doc.y + 6;
+        doc.fontSize(8.5).fillColor('#222').text(prod, cols.product, rowY, { width: 100 });
+        doc.text(title, cols.title, rowY, { width: 200 });
+        doc.text(String(qty), cols.qty, rowY, { width: 30, align: 'right' });
+        doc.text(gross.toFixed(2), cols.gross, rowY, { width: 60, align: 'right' });
+        doc.text(discount.toFixed(2), cols.discount, rowY, { width: 60, align: 'right' });
+        doc.text(taxable.toFixed(2), cols.taxable, rowY, { width: 60, align: 'right' });
+        doc.text(sgst.toFixed(2), cols.sgst, rowY, { width: 40, align: 'right' });
+        doc.text(cgst.toFixed(2), cols.cgst, rowY, { width: 40, align: 'right' });
+        doc.text(rowTotal.toFixed(2), cols.total, rowY, { width: 60, align: 'right' });
+
+        doc.moveDown(1);
+      });
+
+      // Totals
+      doc.moveTo(left, doc.y).lineTo(right, doc.y).stroke('#ccc');
+      doc.moveDown(0.4);
+      const totalsY = doc.y;
+      doc.fontSize(9).fillColor('#000').text('Total', cols.product, totalsY);
+      doc.text(String(itemsCount), cols.qty, totalsY, { width: 30, align: 'right' });
+      doc.text(`${Number(order.subtotal || 0).toFixed(2)}`, cols.gross, totalsY, { width: 60, align: 'right' });
+      doc.text(`${Number(order.discount || 0).toFixed(2)}`, cols.discount, totalsY, { width: 60, align: 'right' });
+      doc.text(`${Number(order.taxable || order.subtotal || 0).toFixed(2)}`, cols.taxable, totalsY, { width: 60, align: 'right' });
+      const halfTax = Number(((order.tax || 0) / 2).toFixed(2));
+      doc.text(`${(halfTax || 0).toFixed(2)}`, cols.sgst, totalsY, { width: 40, align: 'right' });
+      doc.text(`${(halfTax || 0).toFixed(2)}`, cols.cgst, totalsY, { width: 40, align: 'right' });
+      doc.text(`${Number(order.total || 0).toFixed(2)}`, cols.total, totalsY, { width: 60, align: 'right' });
+
+      doc.moveDown(2);
+
+      // Grand total box right aligned
+      doc.fontSize(12).fillColor('#000').text('Grand Total', left + usableWidth - 240, doc.y);
+      doc.fontSize(14).fillColor('#000').text(`₹${Number(order.total || 0).toFixed(2)}`, left + usableWidth - 80, doc.y - 2, { align: 'right' });
+
+      doc.moveDown(3);
+      // Signature
+      doc.fontSize(9).fillColor('#000').text('Authorized Signatory', left + usableWidth - 220, doc.y);
+      doc.moveTo(left + usableWidth - 260, doc.y + 18).lineTo(left + usableWidth - 80, doc.y + 18).stroke('#000');
+
+      // Footer: returns policy and contact
+      doc.moveTo(left, doc.page.height - 120).lineTo(right, doc.page.height - 120).stroke('#eee');
+      doc.fontSize(7.5).fillColor('#444').text('Returns Policy: At Flipkart we try to deliver perfectly each and every time. But in the off-chance that you need to return the item, please do so with the original Brand box/price tag, original packing and invoice. The goods sold are intended for end user consumption and not for resale.', left + 10, doc.page.height - 110, { width: usableWidth - 20 });
+      doc.fontSize(7.5).fillColor('#666').text('Contact Flipkart: 044-45614700 | 044-67415800 | www.flipkart.com/helpcentre', left + 10, doc.page.height - 50, { width: usableWidth - 20 });
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
 
 app.use(cors());
 app.use(express.json());
@@ -41,6 +223,283 @@ async function start() {
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
   }
+
+  // Helper: Generate OTP
+  function generateOTP() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  // Helper: Send OTP via email
+  async function sendOtpEmail(email, otp) {
+    if (!transporter) {
+      console.warn('⚠️ Transporter not available, skipping OTP email send');
+      return false;
+    }
+    try {
+      const mail = {
+        from: SMTP_FROM,
+        to: email,
+        subject: '🔐 Your OTP for JeevaLeaf - Password Reset',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5; border-radius: 8px;">
+            <div style="background: linear-gradient(135deg, #0b6623 0%, #073d1a 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+              <h1 style="margin: 0;">JeevaLeaf</h1>
+              <p style="margin: 10px 0 0 0; font-size: 14px;">Bring life into your home 🌿</p>
+            </div>
+            <div style="background: white; padding: 30px; border-radius: 0 0 8px 8px;">
+              <h2 style="color: #0b6623; margin-top: 0;">Password Reset Request</h2>
+              <p style="color: #333; font-size: 16px;">We received a request to reset your password. Here's your OTP:</p>
+              <div style="background: #f0f0f0; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                <h1 style="color: #0b6623; margin: 0; letter-spacing: 5px; font-size: 32px;">${otp}</h1>
+              </div>
+              <p style="color: #666; font-size: 14px; margin: 20px 0;">This OTP is valid for <strong>10 minutes</strong>. Do not share it with anyone.</p>
+              <p style="color: #666; font-size: 14px;">If you didn't request this reset, you can safely ignore this email.</p>
+              <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;" />
+              <p style="color: #999; font-size: 12px; text-align: center;">Questions? Contact us at ${process.env.SUPPORT_EMAIL || 'support@jeevaleaf.com'}</p>
+            </div>
+          </div>
+        `
+      };
+      console.log(`📧 Sending OTP email to ${email}...`);
+      const info = await transporter.sendMail(mail);
+      console.log(`✅ OTP email sent to ${email} - Response ID: ${info.response}`);
+      return true;
+    } catch (err) {
+      console.error('❌ Error sending OTP email to', email, ':', err.message);
+      console.error('Full error:', err);
+      return false;
+    }
+  }
+
+  // Request Password Reset (sends OTP)
+  app.post('/api/request-password-reset', async (req, res) => {
+    try {
+      const { email } = req.body;
+      console.log(`🔄 Password reset requested for email: ${email}`);
+      
+      if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (!user) {
+        console.log(`❌ No user found for email: ${email}`);
+        return res.status(404).json({ success: false, message: 'No account found with this email' });
+      }
+
+      // Generate OTP
+      const otp = generateOTP();
+      console.log(`🔐 Generated OTP for ${email}: ${otp}`);
+      
+      const otpHash = await bcrypt.hash(otp, 10);
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Save OTP to database
+      await Otp.findOneAndUpdate(
+        { email: email.toLowerCase() },
+        { email: email.toLowerCase(), otpHash, expiresAt },
+        { upsert: true, new: true }
+      );
+      console.log(`✅ OTP saved to database for ${email}`);
+
+      // Send OTP via email
+      const sent = await sendOtpEmail(email, otp);
+      if (!sent) {
+        console.log(`⚠️ WARNING: Email send failed for ${email}`);
+        console.log(`⚠️ DEBUG: OTP for ${email} is: ${otp}`);
+        console.log(`⚠️ For testing only - OTP saved to database but email delivery failed`);
+        // In dev mode, still allow continuation
+        return res.json({ 
+          success: true, 
+          message: '⚠️ OTP generated (email delivery failed - check server logs)', 
+          email,
+          debugOtp: process.env.NODE_ENV !== 'production' ? otp : undefined
+        });
+      }
+
+      console.log(`✅ OTP request successful for ${email}`);
+      return res.json({ success: true, message: 'OTP sent to your email', email });
+    } catch (err) {
+      console.error('❌ Error in password reset request:', err);
+      return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+    }
+  });
+
+  // Verify OTP and Reset Password
+  app.post('/api/verify-otp', async (req, res) => {
+    try {
+      const { email, otp, newPassword } = req.body;
+      if (!email || !otp || !newPassword) return res.status(400).json({ success: false, message: 'Missing required fields' });
+
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+      const otpRecord = await Otp.findOne({ email: email.toLowerCase() });
+      if (!otpRecord) return res.status(400).json({ success: false, message: 'OTP not found or expired. Please request a new one.' });
+
+      // Check if OTP has expired
+      if (new Date() > otpRecord.expiresAt) {
+        await Otp.deleteOne({ email: email.toLowerCase() });
+        return res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one.' });
+      }
+
+      // Verify OTP
+      const otpValid = await bcrypt.compare(otp, otpRecord.otpHash);
+      if (!otpValid) return res.status(400).json({ success: false, message: 'Invalid OTP' });
+
+      // Update password
+      const hashed = await bcrypt.hash(newPassword, 10);
+      user.password = hashed;
+      await user.save();
+
+      // Delete used OTP
+      await Otp.deleteOne({ email: email.toLowerCase() });
+
+      return res.json({ success: true, message: 'Password reset successful. Please login with your new password.' });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // Request OTP for Signup (new account creation flow)
+  app.post('/api/request-otp', async (req, res) => {
+    try {
+      const { email } = req.body;
+      console.log(`🔄 OTP requested for signup - Email: ${email}`);
+      
+      if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+      // Check if email already exists
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      if (existingUser) {
+        console.log(`❌ Email already registered: ${email}`);
+        return res.status(400).json({ success: false, message: 'Email already registered. Please login instead.' });
+      }
+
+      // Generate OTP
+      const otp = generateOTP();
+      console.log(`🔐 Generated OTP for signup ${email}: ${otp}`);
+      
+      const otpHash = await bcrypt.hash(otp, 10);
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Save OTP to database
+      await Otp.findOneAndUpdate(
+        { email: email.toLowerCase() },
+        { email: email.toLowerCase(), otpHash, expiresAt },
+        { upsert: true, new: true }
+      );
+      console.log(`✅ OTP saved to database for signup ${email}`);
+
+      // Send OTP via email
+      const sent = await sendOtpEmail(email, otp);
+      
+      // For development: if email fails but OTP is saved, still proceed and log the OTP
+      if (!sent) {
+        console.log(`⚠️ WARNING: Email send failed for ${email}`);
+        console.log(`⚠️ DEBUG: OTP for ${email} is: ${otp}`);
+        console.log(`⚠️ For testing only - OTP saved to database but email delivery failed`);
+        // In dev mode, still allow continuation - user can manually use the OTP shown in logs
+        return res.json({ 
+          success: true, 
+          message: '⚠️ OTP generated (email delivery failed - check server logs)', 
+          email,
+          debugOtp: process.env.NODE_ENV !== 'production' ? otp : undefined
+        });
+      }
+
+      console.log(`✅ OTP signup request successful for ${email}`);
+      return res.json({ success: true, message: 'OTP sent to your email', email });
+    } catch (err) {
+      console.error('❌ Error in OTP signup request:', err);
+      return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+    }
+  });
+
+  // Verify OTP for Signup (and create account)
+  app.post('/api/verify-otp-signup', async (req, res) => {
+    try {
+      const { email, otp, name, password } = req.body;
+      if (!email || !otp || !name || !password) return res.status(400).json({ success: false, message: 'Missing required fields' });
+
+      console.log(`🔄 Verifying OTP for signup - Email: ${email}, Name: ${name}`);
+
+      // Check if email already exists
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      if (existingUser) {
+        return res.status(400).json({ success: false, message: 'Email already registered. Please login instead.' });
+      }
+
+      const otpRecord = await Otp.findOne({ email: email.toLowerCase() });
+      if (!otpRecord) return res.status(400).json({ success: false, message: 'OTP not found or expired. Please request a new one.' });
+
+      // Check if OTP has expired
+      if (new Date() > otpRecord.expiresAt) {
+        await Otp.deleteOne({ email: email.toLowerCase() });
+        return res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one.' });
+      }
+
+      // Verify OTP
+      const otpValid = await bcrypt.compare(otp, otpRecord.otpHash);
+      if (!otpValid) return res.status(400).json({ success: false, message: 'Invalid OTP' });
+
+      // Create new user
+      const hashed = await bcrypt.hash(password, 10);
+      const user = new User({ name, email: email.toLowerCase(), password: hashed });
+      await user.save();
+
+      // Delete used OTP
+      await Otp.deleteOne({ email: email.toLowerCase() });
+
+      // Generate token
+      const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+      const out = user.toObject();
+      delete out.password;
+
+      console.log(`✅ User created successfully via OTP: ${email}`);
+      return res.json({ success: true, message: 'Account created successfully', token, user: out });
+    } catch (err) {
+      console.error('❌ Error in OTP signup verification:', err);
+      return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+    }
+  });
+
+  // Also add alias endpoint for /api/verify-reset-token (used in forgot password flow)
+  app.post('/api/verify-reset-token', async (req, res) => {
+    try {
+      const { email, token, newPassword } = req.body;
+      if (!email || !token || !newPassword) return res.status(400).json({ success: false, message: 'Missing required fields' });
+
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+      const otpRecord = await Otp.findOne({ email: email.toLowerCase() });
+      if (!otpRecord) return res.status(400).json({ success: false, message: 'Token not found or expired. Please request a new one.' });
+
+      // Check if OTP has expired
+      if (new Date() > otpRecord.expiresAt) {
+        await Otp.deleteOne({ email: email.toLowerCase() });
+        return res.status(400).json({ success: false, message: 'Token has expired. Please request a new one.' });
+      }
+
+      // Verify token (OTP)
+      const tokenValid = await bcrypt.compare(token, otpRecord.otpHash);
+      if (!tokenValid) return res.status(400).json({ success: false, message: 'Invalid token' });
+
+      // Update password
+      const hashed = await bcrypt.hash(newPassword, 10);
+      user.password = hashed;
+      await user.save();
+
+      // Delete used token
+      await Otp.deleteOne({ email: email.toLowerCase() });
+
+      console.log(`✅ Password reset via token successful for ${email}`);
+      return res.json({ success: true, message: 'Password reset successful. Please login with your new password.' });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+    }
+  });
 
   // Signup
   app.post('/api/signup', async (req, res) => {
@@ -150,6 +609,8 @@ async function start() {
       if (!user) return res.status(401).json({ success: false, message: 'Invalid token' });
 
       const { items, paymentMethod } = req.body;
+      const { deliveryName, deliveryPhone, deliveryEmail, deliveryAddress, deliveryLocation } = req.body;
+      console.log('📦 New order - Email:', deliveryEmail);
       if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, message: 'No items provided' });
 
       // sanitize incoming items to expected schema
@@ -179,9 +640,6 @@ async function start() {
       }
       // other methods start as pending payment and pending processing
 
-      // extract delivery details from request
-      const { deliveryName, deliveryPhone, deliveryEmail, deliveryAddress, deliveryLocation } = req.body;
-
       const order = new Order({
         user: user._id,
         items: sanitizedItems,
@@ -199,6 +657,90 @@ async function start() {
         deliveryLocation: deliveryLocation || ''
       });
       await order.save();
+
+      // Send order confirmation email
+      if (transporter && order.deliveryEmail) {
+        console.log(`📧 Sending order confirmation email to ${order.deliveryEmail}`);
+        setImmediate(async () => {
+          try {
+            const itemsHtml = order.items?.map(it => `
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #ddd;">${it.name || 'Item'}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #ddd; text-align: center;">${it.quantity || 1}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #ddd; text-align: right;">₹${(Number(it.price) || 0).toFixed(2)}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #ddd; text-align: right;">₹${((Number(it.price) || 0) * (it.quantity || 1)).toFixed(2)}</td>
+              </tr>
+            `).join('') || '';
+
+            const confirmationHtml = `
+              <html>
+                <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px;">
+                  <div style="max-width: 700px; margin: 0 auto; background-color: white; border: 1px solid #4CAF50; border-radius: 8px;">
+                    <div style="background: linear-gradient(135deg, #071018 0%, #0b2a1a 100%); color: white; padding: 40px; text-align: center;">
+                      <h1 style="color: #FFD700; margin: 0 0 10px 0; font-size: 36px;">jeevaLeaf</h1>
+                      <p style="color: #4CAF50; margin: 5px 0; font-size: 16px;">Bring life in our home 🌿</p>
+                      <h2 style="color: #4CAF50; margin: 20px 0 0 0; font-size: 20px;">✅ ORDER CONFIRMED</h2>
+                    </div>
+                    <div style="padding: 40px;">
+                      <p style="font-size: 16px; color: #333; margin-bottom: 20px;">
+                        <strong>Dear ${order.deliveryName || 'Valued Customer'},</strong><br/>
+                        Thank you for your order! We've received it and will process it soon.
+                      </p>
+                      <div style="background: #f9f9f9; border-left: 4px solid #FFD700; padding: 20px; margin-bottom: 30px; border-radius: 4px;">
+                        <p style="margin: 8px 0;"><strong>Order ID:</strong> ${order._id}</p>
+                        <p style="margin: 8px 0;"><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>
+                        <p style="margin: 8px 0;"><strong>Status:</strong> <span style="background: #4CAF50; color: white; padding: 4px 12px; border-radius: 4px;">${(order.status || 'PENDING').toUpperCase()}</span></p>
+                      </div>
+                      <h3 style="color: #4CAF50; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; margin-bottom: 15px;">📍 DELIVERY DETAILS</h3>
+                      <p style="color: #333; margin: 8px 0;"><strong>Name:</strong> ${order.deliveryName || 'N/A'}</p>
+                      <p style="color: #333; margin: 8px 0;"><strong>Phone:</strong> ${order.deliveryPhone || 'N/A'}</p>
+                      <p style="color: #333; margin: 8px 0;"><strong>Address:</strong> ${order.deliveryAddress || 'N/A'}</p>
+                      <p style="color: #333; margin: 8px 0;"><strong>City:</strong> ${order.deliveryLocation || 'N/A'}</p>
+                      <h3 style="color: #4CAF50; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; margin: 30px 0 15px 0;">📦 ORDER ITEMS</h3>
+                      <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                          <tr style="background: #f0f0f0;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #4CAF50;">Product</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #4CAF50;">Qty</th>
+                            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #4CAF50;">Price</th>
+                            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #4CAF50;">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${itemsHtml}
+                        </tbody>
+                      </table>
+                      <div style="background: #f9f9f9; padding: 20px; margin-top: 20px; border-radius: 4px;">
+                        <p style="margin: 8px 0; text-align: right;"><strong>Subtotal:</strong> ₹${order.subtotal.toFixed(2)}</p>
+                        <p style="margin: 8px 0; text-align: right;"><strong>Tax (10%):</strong> ₹${order.tax.toFixed(2)}</p>
+                        <p style="margin: 8px 0; text-align: right;"><strong>Shipping:</strong> ₹${order.shipping.toFixed(2)}</p>
+                        <p style="margin: 15px 0 0 0; text-align: right; font-size: 18px; color: #4CAF50;"><strong>Total: ₹${order.total.toFixed(2)}</strong></p>
+                      </div>
+                      <p style="color: #666; font-size: 14px; margin-top: 30px;">We'll send you updates on your order status. Track your package anytime!</p>
+                    </div>
+                    <div style="background: #f5f5f5; border-top: 1px solid #ddd; padding: 20px; text-align: center; color: #666; font-size: 12px;">
+                      <p style="margin: 5px 0;">Thank you for shopping with jeevaLeaf 🌿</p>
+                      <p style="margin: 5px 0;">For support: <strong>support@jeevaleaf.com</strong></p>
+                    </div>
+                  </div>
+                </body>
+              </html>
+            `;
+
+            const mail = {
+              from: SMTP_FROM,
+              to: order.deliveryEmail,
+              subject: `✅ Order Confirmed - Order #${order._id.toString().slice(-8)}`,
+              html: confirmationHtml
+            };
+
+            await transporter.sendMail(mail);
+            console.log(`✅ Order confirmation email sent to ${order.deliveryEmail}`);
+          } catch (err) {
+            console.error('❌ Error sending order confirmation email:', err.message);
+          }
+        });
+      }
 
       return res.json({ success: true, orderId: order._id, order });
     } catch (err) {
@@ -236,6 +778,60 @@ async function start() {
       return res.json({ success: true, orders });
     } catch (err) {
       console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // Submit a review for an order (protected) - only allowed when order.status === 'delivered' and owner
+  app.post('/api/orders/:id/review', async (req, res) => {
+    try {
+      const auth = req.headers.authorization;
+      if (!auth) return res.status(401).json({ success: false, message: 'Missing token' });
+      const token = auth.split(' ')[1];
+      const data = jwt.verify(token, JWT_SECRET);
+      const user = await User.findById(data.id);
+      if (!user) return res.status(401).json({ success: false, message: 'Invalid token' });
+
+      const order = await Order.findById(req.params.id);
+      if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+      if (order.user.toString() !== user._id.toString()) return res.status(403).json({ success: false, message: 'Forbidden' });
+      if ((order.status || '').toLowerCase() !== 'delivered') return res.status(400).json({ success: false, message: 'Can only review delivered orders' });
+
+      const { rating, text, productId } = req.body;
+      const r = Number(rating || 0);
+      if (!r || r < 1 || r > 5) return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+
+      // Prevent duplicate review for same order by same user
+      const exists = await Review.findOne({ user: user._id, order: order._id });
+      if (exists) return res.status(400).json({ success: false, message: 'You have already reviewed this order' });
+
+      const review = new Review({ user: user._id, order: order._id, productId: productId || null, rating: r, text: text || '' });
+      await review.save();
+
+      return res.json({ success: true, review });
+    } catch (err) {
+      console.error('Review submit error:', err && err.message ? err.message : err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
+  // Get latest customer reviews (public)
+  app.get('/api/reviews', async (req, res) => {
+    try {
+      const limit = Math.min(100, Number(req.query.limit) || 20);
+      const reviews = await Review.find().sort({ createdAt: -1 }).limit(limit).populate('user', 'name profilePhoto');
+      const out = reviews.map(r => ({
+        id: r._id,
+        name: r.user?.name || 'Customer',
+        avatar: r.user?.profilePhoto || null,
+        rating: r.rating,
+        text: r.text,
+        createdAt: r.createdAt,
+        verified: !!r.verified
+      }));
+      return res.json({ success: true, reviews: out });
+    } catch (err) {
+      console.error('Fetch reviews error:', err && err.message ? err.message : err);
       return res.status(500).json({ success: false, message: 'Server error' });
     }
   });
@@ -369,6 +965,56 @@ async function start() {
     }
   });
 
+  // Admin: Analytics summary (protected)
+  app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
+    try {
+      // Basic summary metrics
+      const totalOrders = await Order.countDocuments();
+      const totalUsers = await User.countDocuments();
+
+      const revenueAgg = await Order.aggregate([
+        { $group: { _id: null, revenue: { $sum: { $ifNull: ["$total", 0] } } } }
+      ]);
+      const totalRevenue = (revenueAgg[0] && revenueAgg[0].revenue) || 0;
+
+      const ordersByStatus = await Order.aggregate([
+        { $group: { _id: "$status", count: { $sum: 1 } } }
+      ]);
+
+      const paymentsByStatus = await Order.aggregate([
+        { $group: { _id: "$paymentStatus", count: { $sum: 1 } } }
+      ]);
+
+      const topProducts = await Order.aggregate([
+        { $unwind: "$items" },
+        { $group: { _id: "$items.name", qty: { $sum: "$items.quantity" }, revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } } } },
+        { $sort: { qty: -1 } },
+        { $limit: 10 }
+      ]);
+
+      const dailyOrders = await Order.aggregate([
+        { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 }, revenue: { $sum: { $ifNull: ["$total", 0] } } } },
+        { $sort: { _id: 1 } },
+        { $limit: 30 }
+      ]);
+
+      const lowStockItems = await Plant.find({ stock: { $lte: 5 } }).select('name stock').limit(50);
+
+      return res.json({
+        success: true,
+        summary: { totalOrders, totalUsers, totalRevenue },
+        ordersByStatus,
+        paymentsByStatus,
+        topProducts,
+        dailyOrders,
+        lowStockItems
+      });
+    } catch (err) {
+      console.error('Analytics fetch error:', err && err.message ? err.message : err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
   app.get('/api/admin/orders/:id', requireAdmin, async (req, res) => {
     try {
       const order = await Order.findById(req.params.id).populate('user', 'name email role');
@@ -385,9 +1031,60 @@ async function start() {
       const { status, paymentStatus } = req.body;
       const order = await Order.findById(req.params.id);
       if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+      
+      const oldStatus = order.status;
       if (status) order.status = status;
       if (paymentStatus) order.paymentStatus = paymentStatus;
       await order.save();
+
+      // Send status update email to customer
+      if (status && status !== oldStatus && transporter && order.deliveryEmail) {
+        console.log(`📧 Sending email - Old: ${oldStatus}, New: ${status}, Email: ${order.deliveryEmail}`);
+        setImmediate(async () => {
+          try {
+            const statusMessages = {
+              'processing': { subject: '🔄 Your Order is Being Processed', message: 'Your order is being processed and will be shipped soon.' },
+              'shipped': { subject: '📦 Your Order Has Been Shipped!', message: 'Great news! Your order has been shipped and is on the way to you.' },
+              'delivered': { subject: '✅ Your Order Has Been Delivered!', message: 'Your order has been successfully delivered. Thank you for shopping with us!' },
+              'cancelled': { subject: '❌ Your Order Has Been Cancelled', message: 'Your order has been cancelled. If you have any questions, please contact us.' }
+            };
+
+            const statusInfo = statusMessages[status] || { subject: `Order Status Updated: ${status}`, message: 'Your order status has been updated.' };
+
+            const mail = {
+              from: SMTP_FROM,
+              to: order.deliveryEmail,
+              subject: statusInfo.subject,
+              html: getStatusEmailHTML(statusInfo, order, status)
+            };
+
+            // If the order is delivered, generate and attach the invoice PDF
+            if (status === 'delivered') {
+              try {
+                const buffer = await generateInvoiceBuffer(order);
+                mail.attachments = [
+                  {
+                    filename: `invoice-${order._id}.pdf`,
+                    content: buffer,
+                    contentType: 'application/pdf'
+                  }
+                ];
+                console.log(`📎 Attached invoice PDF for order ${order._id}`);
+              } catch (pdfErr) {
+                console.error('❌ Error generating invoice PDF:', pdfErr.message);
+              }
+            }
+
+            await transporter.sendMail(mail);
+            console.log(`✅ Status email sent to ${order.deliveryEmail} - Status: ${status}`);
+          } catch (err) {
+            console.error('❌ Error sending status email:', err.message);
+          }
+        });
+      } else {
+        console.log(`⏭️ Email not sent - status: ${status}, oldStatus: ${oldStatus}, transporter: ${!!transporter}, email: ${order.deliveryEmail}`);
+      }
+
       return res.json({ success: true, order });
     } catch (err) {
       console.error(err);

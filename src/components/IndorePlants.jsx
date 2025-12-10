@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { formatINRFromUSD } from "../utils/priceUtils";
+import Product from "./Product";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
@@ -10,6 +11,7 @@ const IndorePlants = ({ addToCart, setCurrentPage }) => {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [allPlants, setAllPlants] = useState([]); // Store all plants for grid
   const [topPlants, setTopPlants] = useState([]); // Top 10 for carousel
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const autoScrollTimerRef = useRef(null);
 
   useEffect(() => {
@@ -247,6 +249,7 @@ const IndorePlants = ({ addToCart, setCurrentPage }) => {
             {allPlants.map((p) => (
               <div 
                 key={p._id} 
+                onClick={() => setSelectedProduct(p)}
                 className="bg-gradient-to-br from-green-900/20 to-black/40 border border-green-700 p-6 rounded-2xl backdrop-blur-md hover:border-green-500 hover:shadow-lg hover:shadow-green-500/20 transition duration-300 cursor-pointer transform hover:-translate-y-1 group relative overflow-hidden"
               >
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition pointer-events-none" style={{
@@ -280,13 +283,13 @@ const IndorePlants = ({ addToCart, setCurrentPage }) => {
                     )}
                   </div>
                   <button
-                    onClick={() => addToCart({ 
+                    onClick={(e) => { e.stopPropagation(); addToCart({ 
                       id: p._id, 
                       name: p.name, 
                       price: p.salePrice,
                       currency: 'INR',
                       image: p.imageUrl 
-                    })}
+                    });}}
                     className="px-3 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold transition"
                   >
                     Add
@@ -294,6 +297,18 @@ const IndorePlants = ({ addToCart, setCurrentPage }) => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Product detail modal */}
+        {selectedProduct && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedProduct(null)} />
+            <div className="relative w-full max-w-4xl mx-auto overflow-auto" style={{ maxHeight: '90vh' }}>
+              <div className="rounded-lg overflow-hidden">
+                <Product product={selectedProduct} addToCart={addToCart} onClose={() => setSelectedProduct(null)} />
+              </div>
+            </div>
           </div>
         )}
 

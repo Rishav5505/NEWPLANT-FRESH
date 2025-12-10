@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { mockProducts } from '../utils/mockProducts';
 
 /**
  * Inventory Management Component
  * Track stock levels, set alerts, manage reorders
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 
 const InventoryManagement = ({ adminToken }) => {
   const [products, setProducts] = useState([]);
@@ -26,7 +25,8 @@ const InventoryManagement = ({ adminToken }) => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/products`, {
+      // Try to fetch plants from server admin endpoint (requires admin token)
+      const response = await fetch(`${API_BASE}/api/admin/plants`, {
         headers: { 'Authorization': `Bearer ${adminToken}` },
       }).catch(() => null);
 
@@ -34,15 +34,28 @@ const InventoryManagement = ({ adminToken }) => {
 
       if (response && response.ok) {
         const result = await response.json();
-        data = Array.isArray(result) ? result : result.products || [];
+        // server returns { success: true, plants: [...] }
+        const plants = result.plants || [];
+        console.log('Fetched plants from server:', plants.length, plants.slice(0, 2)); // Debug log
+        // map plants to inventory product shape - use stock directly from DB
+        data = plants.map(p => ({
+          _id: p._id,
+          name: p.name,
+          price: p.salePrice || p.price || 0,
+          stock: Number(p.stock) || 0, // use stock from DB, default to 0 if missing
+          category: p.category || 'uncategorized',
+          imageUrl: p.imageUrl || ''
+        }));
+        console.log('Mapped products:', data.slice(0, 2)); // Debug log
       } else {
-        // Mock data for testing
+        console.warn('Failed to fetch from API or response not ok');
+        // Fallback to mock data for testing or when server unavailable
         data = [
-          { _id: '1', name: 'Monstera Plant', price: 500, stock: 8 },
-          { _id: '2', name: 'Rose Kit', price: 900, stock: 3 },
-          { _id: '3', name: 'Planter', price: 800, stock: 12 },
-          { _id: '4', name: 'Flowering Plant', price: 600, stock: 2 },
-          { _id: '5', name: 'Succulent Mix', price: 400, stock: 15 },
+          { _id: '1', name: 'Monstera Plant', price: 500, stock: 10 },
+          { _id: '2', name: 'Rose Kit', price: 900, stock: 10 },
+          { _id: '3', name: 'Planter', price: 800, stock: 10 },
+          { _id: '4', name: 'Flowering Plant', price: 600, stock: 10 },
+          { _id: '5', name: 'Succulent Mix', price: 400, stock: 10 },
         ];
       }
 
@@ -55,9 +68,9 @@ const InventoryManagement = ({ adminToken }) => {
       console.error('Error fetching products:', error);
       // Use mock data on error instead of alert
       const mockData = [
-        { _id: '1', name: 'Monstera Plant', price: 500, stock: 8 },
-        { _id: '2', name: 'Rose Kit', price: 900, stock: 3 },
-        { _id: '3', name: 'Planter', price: 800, stock: 12 },
+        { _id: '1', name: 'Monstera Plant', price: 500, stock: 10 },
+        { _id: '2', name: 'Rose Kit', price: 900, stock: 10 },
+        { _id: '3', name: 'Planter', price: 800, stock: 10 },
       ];
       setProducts(mockData);
       const low = mockData.filter(p => (p.stock || 0) < lowStockThreshold);
@@ -79,26 +92,30 @@ const InventoryManagement = ({ adminToken }) => {
       alert('Enter a valid stock number');
       return;
     }
+    // Update locally first so UI is responsive
+    const parsed = parseInt(newStock, 10);
+    setProducts(prev => prev.map(p => p._id === productId ? { ...p, stock: parsed } : p));
+    setLowStockItems(prev => {
+      // recalc from updated products
+      const all = products.map(p => p._id === productId ? { ...p, stock: parsed } : p);
+      return all.filter(p => (p.stock || 0) < lowStockThreshold);
+    });
+    setEditingProduct(null);
+    setNewStock('');
+    alert('Stock updated locally');
 
+    // Optionally attempt to persist to server (best-effort). Server Plant model doesn't include `stock` by default,
+    // so this call may be ignored by the API. We still attempt to call the admin update endpoint.
     try {
-      const response = await fetch(`${API_BASE}/api/admin/products/${productId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${adminToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ stock: parseInt(newStock) }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update stock');
-      
-      setEditingProduct(null);
-      setNewStock('');
-      fetchProducts();
-      alert('Stock updated successfully!');
-    } catch (error) {
-      console.error('Error updating stock:', error);
-      alert('Failed to update stock');
+      if (adminToken) {
+        await fetch(`${API_BASE}/api/admin/plants/${productId}/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+          body: JSON.stringify({ stock: parsed })
+        });
+      }
+    } catch (err) {
+      console.warn('Server stock update attempt failed (non-blocking)', err);
     }
   };
 
@@ -163,34 +180,6 @@ const InventoryManagement = ({ adminToken }) => {
 
       {/* Demo / Add Products Controls */}
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              // Load all demo products into inventory (replace current list)
-              setProducts(mockProducts);
-              const low = mockProducts.filter(p => (p.stock || 0) < lowStockThreshold);
-              setLowStockItems(low);
-            }}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full"
-          >
-            Load Demo Products
-          </button>
-          <button
-            onClick={() => {
-              // Append demo products (merge, avoid duplicates by _id)
-              setProducts(prev => {
-                const existingIds = new Set(prev.map(p => p._id));
-                const toAdd = mockProducts.filter(p => !existingIds.has(p._id));
-                const all = [...prev, ...toAdd];
-                setLowStockItems(all.filter(p => (p.stock || 0) < lowStockThreshold));
-                return all;
-              });
-            }}
-            className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 w-full"
-          >
-            Append Demo Products
-          </button>
-        </div>
 
         {/* Inline Add Product Form */}
         <div className="bg-white p-4 rounded-lg shadow">

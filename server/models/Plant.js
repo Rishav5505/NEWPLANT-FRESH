@@ -5,6 +5,7 @@ const PlantSchema = new mongoose.Schema({
   category: { type: String, enum: ['indoor', 'flowering', 'outdoor', 'planters', 'care-kits'], required: true },
   salePrice: { type: Number, required: true },
   oldPrice: { type: Number },
+  stock: { type: Number, default: 0 },
   description: { type: String },
   imageUrl: { type: String },
   csvId: { type: String }, // to track which row in CSV this came from

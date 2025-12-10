@@ -115,14 +115,28 @@ const App = () => {
       {currentPage === "home" && (
         <>
           <HeroSection setCurrentPage={setCurrentPage} />
-          <TopSelling addToCart={addToCart} />
-          <Gallery setCurrentPage={setCurrentPage} />
-          <Features />
-          <Reviews />
-          <CTA />
-          <Footer setCurrentPage={setCurrentPage} />
+          <section className="revealable"><TopSelling addToCart={addToCart} /></section>
+          <section className="revealable"><Gallery setCurrentPage={setCurrentPage} /></section>
+          <section className="revealable"><Features /></section>
+          <section className="revealable"><Reviews /></section>
+          <section className="revealable"><CTA /></section>
+          <section className="revealable"><Footer setCurrentPage={setCurrentPage} /></section>
         </>
       )}
+
+      {/* Reveal observer for sections */}
+      <script dangerouslySetInnerHTML={{ __html: `
+        (function(){
+          try{
+            const obs = new IntersectionObserver((entries)=>{
+              entries.forEach(e=>{
+                if(e.isIntersecting) e.target.classList.add('revealed');
+              });
+            },{ threshold: 0.18 });
+            document.querySelectorAll('.revealable').forEach(el=>obs.observe(el));
+          }catch(e){}
+        })();
+      ` }} />
 
       {currentPage === "shop" && (
         <>
@@ -230,12 +244,12 @@ const App = () => {
       {currentPage !== "home" && currentPage !== "contact" && currentPage !== "shop" && currentPage !== "about" && currentPage !== "checkout" && currentPage !== "indoreplants" && currentPage !== "floweringplants" && currentPage !== "outdoorplants" && currentPage !== "plantersandpots" && currentPage !== "plantcarekits" && currentPage !== "careguides" && currentPage !== "myorders" && currentPage !== "wishlist" && currentPage !== "wallet" && currentPage !== "profile" && currentPage !== "admin" && (
         <>
           <HeroSection setCurrentPage={setCurrentPage} />
-          <TopSelling addToCart={addToCart} />
-          <Gallery setCurrentPage={setCurrentPage} />
-          <Features />
-          <Reviews />
-          <CTA />
-          <Footer setCurrentPage={setCurrentPage} />
+          <section className="revealable"><TopSelling addToCart={addToCart} /></section>
+          <section className="revealable"><Gallery setCurrentPage={setCurrentPage} /></section>
+          <section className="revealable"><Features /></section>
+          <section className="revealable"><Reviews /></section>
+          <section className="revealable"><CTA /></section>
+          <section className="revealable"><Footer setCurrentPage={setCurrentPage} /></section>
         </>
       )}
 
