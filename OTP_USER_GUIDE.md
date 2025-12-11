@@ -228,7 +228,7 @@ SMTP_PASS=your-app-password
 JWT_SECRET=your-secret-key
 
 # Database
-MONGO_URI=mongodb://localhost:27017/Plant
+MONGO_URI=mongodb+srv://contactjivaleaf_db_user:mpdmjvqtTZVabjih@plant.3drbi9h.mongodb.net/plantdb?retryWrites=true&w=majority&appName=Plant
 ```
 
 ### Setting Up Gmail SMTP (Optional)

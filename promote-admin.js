@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/Plant";
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://contactjivaleaf_db_user:mpdmjvqtTZVabjih@plant.3drbi9h.mongodb.net/plantdb?retryWrites=true&w=majority&appName=Plant";
 
 async function promoteAdmin() {
   try {
