@@ -6,7 +6,7 @@ const SearchModal = ({ showSearch, setShowSearch, setCurrentPage, addToCart }) =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
+  const API_BASE = import.meta.env.VITE_API_BASE || "https://newplant-2.onrender.com";
 
   useEffect(() => {
     if (!searchTerm.trim()) {

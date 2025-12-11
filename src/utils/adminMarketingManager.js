@@ -3,7 +3,7 @@
  * Create, manage, and track promotional codes
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://newplant-2.onrender.com';
 
 export const discountManager = {
   // Get all discount codes

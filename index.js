@@ -9,7 +9,7 @@ const User = require('./models/User');
 const Order = require('./models/Order');
 const Message = require('./models/Message');
 const Plant = require('./models/Plant');
-const { syncCSVToDatabase, resyncCSV, watchCSVFile, stopWatchingCSVFile } = require('./utils/csvSync');
+const { syncCSVToDatabase, resyncCSV, watchCSVFile, stopWatchingCSVFile, CSV_PATHS } = require('./utils/csvSync');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -31,12 +31,18 @@ async function start() {
     if (MONGO_URI) await mongoose.connect(MONGO_URI, { autoIndex: true });
     console.log('Connected to MongoDB (if MONGO_URI provided)');
     
-    // Sync CSV data to database on startup
-    console.log('Starting CSV to database sync...');
-    const syncResult = await syncCSVToDatabase('indoor');
-      console.log('CSV Sync Result:', syncResult);
-    
-    // Start watching CSV file for real-time updates
+    // Sync CSV data to database on startup for all known categories
+    try {
+      console.log('Starting CSV to database sync for categories:', Object.keys(CSV_PATHS).join(', '));
+      const categories = Object.keys(CSV_PATHS);
+      const results = await Promise.all(categories.map(cat => syncCSVToDatabase(cat).catch(err => ({ success: false, message: err && err.message ? err.message : String(err) }))));
+      console.log('CSV Sync Results:');
+      categories.forEach((cat, i) => console.log(` - ${cat}:`, results[i]));
+    } catch (err) {
+      console.error('Error during initial CSV sync:', err);
+    }
+
+    // Start watching CSV files for real-time updates
     watchCSVFile();
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
