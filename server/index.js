@@ -24,11 +24,25 @@ const PORT = process.env.PORT || 4000;
   // Mail transporter (initialized synchronously for immediate use)
   let transporter = null;
   const SMTP_FROM = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@jeevaleaf.com';
-  
+
+  // Explicitly log SMTP-related env values for debugging (password is NOT logged)
+  try {
+    console.log('SMTP environment (raw):', {
+      SMTP_HOST: process.env.SMTP_HOST || null,
+      SMTP_PORT: process.env.SMTP_PORT || null,
+      SMTP_SECURE_RAW: process.env.SMTP_SECURE || null,
+      SMTP_USER: process.env.SMTP_USER || null,
+      SMTP_PASS_SET: !!process.env.SMTP_PASS
+    });
+  } catch (e) {
+    console.warn('Could not read SMTP env for logging:', e && e.message);
+  }
+
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
     const smtpPort = Number(process.env.SMTP_PORT) || 587;
-    const isSecure = smtpPort === 465 || process.env.SMTP_SECURE === 'true';
-    
+    // Resolve secure flag: port 465 implies secure, otherwise honor explicit env value if set to 'true'
+    const isSecure = smtpPort === 465 || String(process.env.SMTP_SECURE).toLowerCase() === 'true';
+
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: smtpPort,
