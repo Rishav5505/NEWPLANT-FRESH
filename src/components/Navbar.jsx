@@ -3,7 +3,7 @@ import SearchModal from "./SearchModal";
 import LogoImg from "../assets/logo2.jpg";
 
 // Use Vite env variable (must be prefixed with VITE_) when building with Vite.
-const API_BASE = import.meta.env.VITE_API_BASE || "https://newplant-4.onrender.com";
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
   const [showLogin, setShowLogin] = useState(false);
@@ -52,7 +52,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
   // helper: request password reset
   const requestPasswordReset = async (emailToUse) => {
     try {
-      const resp = await fetch(`${API_BASE}/api/request-password-reset`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: emailToUse }) });
+      const resp = await fetch(`${API}/api/request-password-reset`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: emailToUse }) });
       const data = await resp.json();
       return { ok: resp.ok, data };
     } catch (err) {
@@ -71,7 +71,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
           const base64 = reader.result;
           const token = localStorage.getItem('auth_token');
           if (!token) return alert('Please login to upload photo');
-          const resp = await fetch(`${API_BASE}/api/me`, {
+          const resp = await fetch(`${API}/api/me`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ profilePhoto: base64 })
@@ -298,7 +298,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
 
               <button onClick={async () => {
                 try {
-                  const resp = await fetch(`${API_BASE}/api/login`, {
+                  const resp = await fetch(`${API}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password }),
@@ -364,7 +364,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
               <button onClick={async ()=>{
                 if (!email || !otp || !password) return alert('Email, code and new password required');
                 try {
-                  const res = await fetch(`${API_BASE}/api/verify-reset-token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, token: otp, newPassword: password }) });
+                  const res = await fetch(`${API}/api/verify-reset-token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, token: otp, newPassword: password }) });
                   const data = await res.json();
                   if (!res.ok) return alert(data.message || 'Reset failed');
                   alert('Password updated. You can now login.');
@@ -419,7 +419,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
                   if (!email || !/^\S+@\S+\.\S+$/.test(email)) { alert('Enter a valid email'); return; }
                   setOtpMessage(''); setOtp(''); setShowOtpFlow(true);
                   try {
-                    const resp = await fetch(`${API_BASE}/api/request-otp`, {
+                    const resp = await fetch(`${API}/api/request-otp`, {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ email })
                     });
@@ -453,7 +453,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
                     if (!email || !/^\S+@\S+\.\S+$/.test(email)) { setOtpMessage('Enter a valid email'); return; }
                     setOtpLoading(true); setOtpMessage('');
                     try {
-                      const resp = await fetch(`${API_BASE}/api/request-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+                      const resp = await fetch(`${API}/api/request-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
                       const data = await resp.json();
                       if (!resp.ok) setOtpMessage(data.message || 'Failed to send OTP'); else setOtpMessage('OTP sent — check your email');
                     } catch (err) { setOtpMessage('Network error'); }
@@ -477,7 +477,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
                     setOtpLoading(true); setOtpMessage('');
                     try {
                       // send name and password along so server can create user with provided data
-                      const resp = await fetch(`${API_BASE}/api/verify-otp-signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otp, name, password }) });
+                      const resp = await fetch(`${API}/api/verify-otp-signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otp, name, password }) });
                       const data = await resp.json();
                       if (!resp.ok) { setOtpMessage(data.message || 'OTP verification failed'); }
                       else {
@@ -553,7 +553,7 @@ const Navbar = ({ setCurrentPage, setShowCart, cartCount = 0, addToCart }) => {
                     try {
                       const token = localStorage.getItem('auth_token');
                       if (!token) return alert('Please login to remove photo');
-                      const resp = await fetch(`${API_BASE}/api/me`, {
+                      const resp = await fetch(`${API}/api/me`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                         body: JSON.stringify({ profilePhoto: null })

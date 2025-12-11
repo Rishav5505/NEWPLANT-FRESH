@@ -1,6 +1,6 @@
 import React from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://newplant-4.onrender.com';
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const Contact = () => {
   const [formData, setFormData] = React.useState({
@@ -21,7 +21,7 @@ const Contact = () => {
     setFeedback('');
     setSending(true);
     try {
-      const resp = await fetch(`${API_BASE}/api/contact`, {
+      const resp = await fetch(`${API}/api/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

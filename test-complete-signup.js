@@ -1,5 +1,5 @@
 // Complete test for signup OTP flow
-const API_BASE = 'https://newplant-4.onrender.com';
+const API_BASE = 'http://localhost:4000';
 
 async function testCompleteSignupOtpFlow() {
   const testEmail = `test-${Date.now()}@example.com`;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://newplant-4.onrender.com';
+const API = import.meta.env.VITE_API_BASE_URL;
 
 export default function UserDetail() {
   const { userId } = useParams();
@@ -15,7 +15,7 @@ export default function UserDetail() {
       setLoading(true);
       try {
         const token = localStorage.getItem('auth_token');
-        const resp = await fetch(`${API_BASE}/api/admin/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+        const resp = await fetch(`${API}/api/admin/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
         const data = await resp.json();
         if (data.success) setUser(data.user);
         else setError(data.message || 'User not found');

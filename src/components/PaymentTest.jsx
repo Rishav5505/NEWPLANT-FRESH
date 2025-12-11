@@ -1,7 +1,7 @@
 import React from "react";
 import { generateInvoicePDF } from '../utils/invoiceUtils';
 
-const API_BASE = import.meta.env.VITE_API_BASE || "https://newplant-4.onrender.com";
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const PaymentTest = ({ orderId, setCurrentPage, onPaymentSuccess }) => {
   const [order, setOrder] = React.useState(null);
@@ -13,7 +13,7 @@ const PaymentTest = ({ orderId, setCurrentPage, onPaymentSuccess }) => {
   React.useEffect(() => {
     if (!orderId) return setLoading(false);
     const token = localStorage.getItem('auth_token');
-    fetch(`${API_BASE}/api/orders/${orderId}`, {
+    fetch(`${API}/api/orders/${orderId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
@@ -99,7 +99,7 @@ const PaymentTest = ({ orderId, setCurrentPage, onPaymentSuccess }) => {
                   const ok = confirm(`Simulate ${method.toUpperCase()} payment for order ${orderId}?`);
                   if (!ok) return;
                   const token = localStorage.getItem('auth_token');
-                  const confirmResp = await fetch(`${API_BASE}/api/orders/${orderId}/confirm-payment`, {
+                  const confirmResp = await fetch(`${API}/api/orders/${orderId}/confirm-payment`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                   });

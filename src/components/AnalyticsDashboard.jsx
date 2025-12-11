@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
  * Fetches live data from server analytics endpoint
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://newplant-4.onrender.com';
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const AnalyticsDashboard = ({ adminToken }) => {
   const [analytics, setAnalytics] = useState(null);
@@ -17,7 +17,7 @@ const AnalyticsDashboard = ({ adminToken }) => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${API_BASE}/api/admin/analytics`, {
+      const response = await fetch(`${API}/api/admin/analytics`, {
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       const data = await response.json();

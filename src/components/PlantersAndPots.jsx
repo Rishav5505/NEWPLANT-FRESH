@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Product from "./Product";
 import { formatINRFromUSD } from "../utils/priceUtils";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "https://newplant-4.onrender.com";
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const PlantersAndPots = ({ addToCart }) => {
   const [plants, setPlants] = useState([]);
@@ -17,7 +17,7 @@ const PlantersAndPots = ({ addToCart }) => {
   const fetchPlantersAndPots = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/api/plants/planters`);
+      const response = await fetch(`${API}/api/plants/planters`);
       const data = await response.json();
       
       if (data.success) {

@@ -6,7 +6,7 @@ const SearchModal = ({ showSearch, setShowSearch, setCurrentPage, addToCart }) =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const API_BASE = import.meta.env.VITE_API_BASE || "https://newplant-4.onrender.com";
+  const API = import.meta.env.VITE_API_BASE_URL;
 
   useEffect(() => {
     if (!searchTerm.trim()) {
@@ -22,7 +22,7 @@ const SearchModal = ({ showSearch, setShowSearch, setCurrentPage, addToCart }) =
           setLoading(true);
           setError(null);
           const q = encodeURIComponent(searchTerm.trim());
-          const resp = await fetch(`${API_BASE}/api/plants/search/${q}`);
+          const resp = await fetch(`${API}/api/plants/search/${q}`);
           const data = await resp.json();
           if (data && data.success) {
             setFilteredPlants(data.plants || []);

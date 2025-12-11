@@ -2,7 +2,7 @@ import React from 'react';
 import { formatINR } from '../utils/priceUtils';
 import jsPDF from 'jspdf';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://newplant-4.onrender.com';
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const MyOrders = ({ setCurrentPage }) => {
   const [orders, setOrders] = React.useState([]);
@@ -29,7 +29,7 @@ const MyOrders = ({ setCurrentPage }) => {
       }
 
       // Fetch user's orders from the /api/my-orders endpoint
-      const resp = await fetch(`${API_BASE}/api/my-orders`, {
+      const resp = await fetch(`${API}/api/my-orders`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await resp.json();
@@ -254,7 +254,7 @@ const MyOrders = ({ setCurrentPage }) => {
       if (!token) return alert('Please login to submit a review');
       if (!order || !order._id) return;
       setSubmittingReview(true);
-      const resp = await fetch(`${API_BASE}/api/orders/${order._id}/review`, {
+      const resp = await fetch(`${API}/api/orders/${order._id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ rating, text: reviewText })

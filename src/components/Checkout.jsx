@@ -2,7 +2,7 @@ import React from 'react';
 import { toINR, formatINR } from '../utils/priceUtils';
 import { generateInvoicePDF } from '../utils/invoiceUtils';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://newplant-4.onrender.com';
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const Checkout = ({ cartItems = [], setCurrentPage, setPaymentOrderId, removeItem }) => {
   const [formData, setFormData] = React.useState({
@@ -54,7 +54,7 @@ const Checkout = ({ cartItems = [], setCurrentPage, setPaymentOrderId, removeIte
         emoji: it.emoji
       }));
 
-      const resp = await fetch(`${API_BASE}/api/orders`, {
+      const resp = await fetch(`${API}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({

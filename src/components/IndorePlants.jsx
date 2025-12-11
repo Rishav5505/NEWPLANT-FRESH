@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { formatINRFromUSD } from "../utils/priceUtils";
 import Product from "./Product";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "https://newplant-4.onrender.com";
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const IndorePlants = ({ addToCart, setCurrentPage }) => {
   const [plants, setPlants] = useState([]);
@@ -21,7 +21,7 @@ const IndorePlants = ({ addToCart, setCurrentPage }) => {
   const fetchIndoorPlants = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/api/plants/indoor`);
+      const response = await fetch(`${API}/api/plants/indoor`);
       const data = await response.json();
       
       if (data.success) {

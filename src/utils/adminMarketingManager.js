@@ -3,13 +3,13 @@
  * Create, manage, and track promotional codes
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://newplant-4.onrender.com';
+const API = import.meta.env.VITE_API_BASE_URL;
 
 export const discountManager = {
   // Get all discount codes
   async getDiscounts(token) {
     try {
-      const response = await fetch(`${API_BASE}/api/admin/discounts`, {
+      const response = await fetch(`${API}/api/admin/discounts`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }).catch(() => null);
       
@@ -66,7 +66,7 @@ export const discountManager = {
   // Create new discount code
   async createDiscount(discountData, token) {
     try {
-      const response = await fetch(`${API_BASE}/api/admin/discounts`, {
+      const response = await fetch(`${API}/api/admin/discounts`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -96,7 +96,7 @@ export const discountManager = {
   // Update discount code
   async updateDiscount(discountId, updates, token) {
     try {
-      const response = await fetch(`${API_BASE}/api/admin/discounts/${discountId}`, {
+      const response = await fetch(`${API}/api/admin/discounts/${discountId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -115,7 +115,7 @@ export const discountManager = {
   // Delete discount code
   async deleteDiscount(discountId, token) {
     try {
-      const response = await fetch(`${API_BASE}/api/admin/discounts/${discountId}`, {
+      const response = await fetch(`${API}/api/admin/discounts/${discountId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -130,7 +130,7 @@ export const discountManager = {
   // Validate discount code
   async validateDiscount(code, orderTotal = 0) {
     try {
-      const response = await fetch(`${API_BASE}/api/discounts/validate`, {
+      const response = await fetch(`${API}/api/discounts/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, orderTotal }),
@@ -174,7 +174,7 @@ export const discountManager = {
 export const emailCampaignManager = {
   async sendCampaign(campaignData, token) {
     try {
-      const response = await fetch(`${API_BASE}/api/admin/campaigns/email`, {
+      const response = await fetch(`${API}/api/admin/campaigns/email`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -199,7 +199,7 @@ export const emailCampaignManager = {
 
   async getCampaigns(token) {
     try {
-      const response = await fetch(`${API_BASE}/api/admin/campaigns`, {
+      const response = await fetch(`${API}/api/admin/campaigns`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }).catch(() => null);
       
@@ -256,7 +256,7 @@ export const emailCampaignManager = {
 export const featuredProductsManager = {
   async getFeaturedProducts(token) {
     try {
-      const response = await fetch(`${API_BASE}/api/admin/featured-products`, {
+      const response = await fetch(`${API}/api/admin/featured-products`, {
         headers: { 'Authorization': `Bearer ${token}` },
       }).catch(() => null);
       
@@ -313,7 +313,7 @@ export const featuredProductsManager = {
 
   async setFeatured(productId, isFeatured, token) {
     try {
-      const response = await fetch(`${API_BASE}/api/admin/featured-products/${productId}`, {
+      const response = await fetch(`${API}/api/admin/featured-products/${productId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
  * Track stock levels, set alerts, manage reorders
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://newplant-4.onrender.com';
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const InventoryManagement = ({ adminToken }) => {
   const [products, setProducts] = useState([]);
@@ -26,7 +26,7 @@ const InventoryManagement = ({ adminToken }) => {
     setLoading(true);
     try {
       // Try to fetch plants from server admin endpoint (requires admin token)
-      const response = await fetch(`${API_BASE}/api/admin/plants`, {
+      const response = await fetch(`${API}/api/admin/plants`, {
         headers: { 'Authorization': `Bearer ${adminToken}` },
       }).catch(() => null);
 
@@ -108,7 +108,7 @@ const InventoryManagement = ({ adminToken }) => {
     // so this call may be ignored by the API. We still attempt to call the admin update endpoint.
     try {
       if (adminToken) {
-        await fetch(`${API_BASE}/api/admin/plants/${productId}/update`, {
+        await fetch(`${API}/api/admin/plants/${productId}/update`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
           body: JSON.stringify({ stock: parsed })

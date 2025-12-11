@@ -521,6 +521,31 @@ async function start() {
     }
   });
 
+  // DEBUG: Send a test email to verify SMTP on deployed host
+  // Usage: POST /api/debug/test-email { "to": "you@example.com" }
+  app.post('/api/debug/test-email', async (req, res) => {
+    try {
+      const { to } = req.body || {};
+      if (!to) return res.status(400).json({ success: false, message: 'Recipient email `to` is required in JSON body' });
+      if (!transporter) return res.status(500).json({ success: false, message: 'Mail transporter not configured on server' });
+
+      const mail = {
+        from: SMTP_FROM,
+        to,
+        subject: 'NEWPLANT - Test Email',
+        text: 'This is a test email sent from NEWPLANT server to verify SMTP configuration.'
+      };
+
+      console.log(`📧 Sending debug test email to ${to}...`);
+      const info = await transporter.sendMail(mail);
+      console.log(`✅ Test email sent to ${to} - Response:`, info && info.response ? info.response : info);
+      return res.json({ success: true, message: 'Test email sent', info: info && info.response ? info.response : info });
+    } catch (err) {
+      console.error('❌ Error sending test email:', err && err.message ? err.message : err);
+      return res.status(500).json({ success: false, message: 'Error sending test email', error: err && err.message ? err.message : String(err) });
+    }
+  });
+
   // Signup
   app.post('/api/signup', async (req, res) => {
     try {

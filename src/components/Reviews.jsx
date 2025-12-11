@@ -1,6 +1,6 @@
 import React from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://newplant-4.onrender.com';
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const Reviews = () => {
   const [reviews, setReviews] = React.useState([]);
@@ -10,7 +10,7 @@ const Reviews = () => {
     let mounted = true;
     async function fetchReviews() {
       try {
-        const resp = await fetch(`${API_BASE}/api/reviews?limit=20`);
+        const resp = await fetch(`${API}/api/reviews?limit=20`);
         const data = await resp.json();
         if (mounted && data.success && Array.isArray(data.reviews)) {
           setReviews(data.reviews);

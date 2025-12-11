@@ -3,7 +3,7 @@ import AnalyticsDashboard from './AnalyticsDashboard';
 import InventoryManagement from './InventoryManagement';
 import MarketingManagement from './MarketingManagement';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://newplant-4.onrender.com';
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const AdminDashboard = ({ setCurrentPage }) => {
   const [orders, setOrders] = React.useState([]);
@@ -21,7 +21,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const resp = await fetch(`${API_BASE}/api/admin/orders`, { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API}/api/admin/orders`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await resp.json();
       if (!data.success) {
         // capture auth errors so we can show helpful UI
@@ -41,7 +41,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
   const fetchMessages = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const resp = await fetch(`${API_BASE}/api/admin/messages`, { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API}/api/admin/messages`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await resp.json();
       if (!data.success) {
         setAuthError(data.message || 'Failed to fetch messages');
@@ -58,7 +58,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const resp = await fetch(`${API_BASE}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await resp.json();
       if (!data.success) {
         setAuthError(data.message || 'Failed to fetch users');
@@ -76,7 +76,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
   const fetchOrderAndPopulate = async (id) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const resp = await fetch(`${API_BASE}/api/admin/orders/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API}/api/admin/orders/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await resp.json();
       if (data.success && data.order) {
         // replace in orders array if exists
@@ -110,7 +110,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
   const loadOrder = async (id) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const resp = await fetch(`${API_BASE}/api/admin/orders/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API}/api/admin/orders/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await resp.json();
       if (data.success) {
         setSelected(data.order);
@@ -130,7 +130,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
   const loadMessage = async (id) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const resp = await fetch(`${API_BASE}/api/admin/messages/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API}/api/admin/messages/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await resp.json();
       if (data.success) {
         setSelectedMessage(data.message);
@@ -141,7 +141,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
   const markMessageRead = async (id, read) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const resp = await fetch(`${API_BASE}/api/admin/messages/${id}/mark-read`, {
+      const resp = await fetch(`${API}/api/admin/messages/${id}/mark-read`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ read })
       });
       const data = await resp.json();
@@ -156,7 +156,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
     if (!confirm('Delete this message?')) return;
     try {
       const token = localStorage.getItem('auth_token');
-      const resp = await fetch(`${API_BASE}/api/admin/messages/${id}/delete`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API}/api/admin/messages/${id}/delete`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       const data = await resp.json();
       if (data.success) {
         await fetchMessages();
@@ -168,7 +168,7 @@ const AdminDashboard = ({ setCurrentPage }) => {
   const updateOrder = async (id, changes) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const resp = await fetch(`${API_BASE}/api/admin/orders/${id}/update`, {
+      const resp = await fetch(`${API}/api/admin/orders/${id}/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(changes)

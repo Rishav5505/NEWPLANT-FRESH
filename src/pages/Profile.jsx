@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "https://newplant-4.onrender.com";
+const API = import.meta.env.VITE_API_BASE_URL;
 
 const Profile = () => {
   const [user, setUser] = useState(() => {
@@ -90,7 +90,7 @@ const Profile = () => {
     try {
       const token = getAuthToken();
       if (!token) return alert('Please login to save changes');
-      const resp = await fetch(`${API_BASE}/api/me`, {
+      const resp = await fetch(`${API}/api/me`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(fields)
