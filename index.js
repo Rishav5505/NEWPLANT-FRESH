@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
 const User = require('./models/User');
 const Order = require('./models/Order');
@@ -16,6 +17,24 @@ const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(express.json());
+
+// --- SMTP transporter helper (available to all routes) ---
+function getTransporter() {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = Number(process.env.SMTP_PORT || 465);
+  const secure = (process.env.SMTP_SECURE === 'true') || port === 465;
+
+  const user = process.env.SMTP_USER;
+  const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, ''); // strip spaces if any
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false }
+  });
+}
 
 // Payment gateway removed: using simple mock flows for card/upi/netbanking/cod
 
@@ -48,7 +67,36 @@ async function start() {
     console.error('MongoDB connection error:', err.message);
   }
 
-  // Signup
+  // --- Simple email test route ---
+  app.get('/__email_test', async (req, res) => {
+    try {
+      const transporter = getTransporter();
+      const verified = await transporter.verify();
+      console.log('SMTP verified ->', verified);
+
+      const to = process.env.SMTP_TEST_TO || process.env.SMTP_USER;
+      const info = await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to,
+        subject: 'NewPlant — test email',
+        text: 'This is a test email from NewPlant. If you received this, SMTP works.',
+        html: '<b>This is a test email from NewPlant. If you received this, SMTP works.</b>'
+      });
+
+      console.log('sendMail info ->', info);
+      return res.json({ ok: true, verified, info });
+    } catch (err) {
+      console.error('Email test error ->', err);
+      return res.status(500).json({
+        ok: false,
+        message: err && err.message ? err.message : 'Unknown error',
+        code: err && err.code ? err.code : undefined,
+        stack: (process.env.NODE_ENV === 'development') ? err.stack : undefined
+      });
+    }
+  });
+
+  // Signup (updated: saves user, returns token and tries to send welcome/OTP email)
   app.post('/api/signup', async (req, res) => {
     try {
       const { name, email, password } = req.body;
@@ -62,7 +110,39 @@ async function start() {
       await user.save();
 
       const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-      return res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+
+      // try to send welcome email (non-blocking failure returned to client)
+      try {
+        const transporter = getTransporter();
+
+        // If you want OTP logic, generate and store OTP here. For now we send welcome mail.
+        const mailInfo = await transporter.sendMail({
+          from: process.env.SMTP_FROM || process.env.SMTP_USER,
+          to: user.email,
+          subject: 'Welcome to NewPlant — Account Created',
+          text: `Hello ${user.name},\n\nYour account was created successfully.\n\nThanks,\nNewPlant`,
+          html: `<p>Hello <b>${user.name}</b>,</p><p>Your account was created successfully.</p><p>Thanks,<br/>NewPlant</p>`
+        });
+
+        console.log('Signup email sent:', mailInfo);
+        // return success including mail info
+        return res.json({
+          success: true,
+          token,
+          user: { id: user._id, name: user.name, email: user.email, role: user.role },
+          mail: { accepted: mailInfo.accepted, rejected: mailInfo.rejected }
+        });
+      } catch (mailErr) {
+        console.error('Signup email failed:', mailErr);
+        // still return created user and token but inform client that mail failed
+        return res.json({
+          success: true,
+          token,
+          user: { id: user._id, name: user.name, email: user.email, role: user.role },
+          mailError: mailErr && mailErr.message ? mailErr.message : 'Failed to send email'
+        });
+      }
+
     } catch (err) {
       console.error(err);
       return res.status(500).json({ success: false, message: 'Server error' });
