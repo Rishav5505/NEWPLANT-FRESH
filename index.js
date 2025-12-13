@@ -1,7 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const corsOptions = {
+const cors = require("cors"); 
+const corsOptions = { 
+
   origin: [
     "https://newplant-fresh.vercel.app",
     "https://newplant-fresh-4.onrender.com"
@@ -10,7 +12,8 @@ const corsOptions = {
   credentials: true
 };
 
-app.use(cors(corsOptions));
+
+
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -25,25 +28,26 @@ const { syncCSVToDatabase, resyncCSV, watchCSVFile, stopWatchingCSVFile, CSV_PAT
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors());
+app.use(cors(corsOptions)); 
 app.use(express.json());
 
 // --- SMTP transporter helper (available to all routes) ---
 function getTransporter() {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = Number(process.env.SMTP_PORT || 465);
+  const secure = (process.env.SMTP_SECURE === 'true') || port === 465;
+
+  const user = process.env.SMTP_USER;
+  const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, ''); // strip spaces if any
+
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.resend.com",
-    port: Number(process.env.SMPTY_PORT || 587),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER || "resend",
-      pass: (process.env.SMTP_PASS || "").trim(),
-    },
-    tls: {
-      rejectUnauthorized: false
-    }
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false }
   });
 }
-
 
 // Payment gateway removed: using simple mock flows for card/upi/netbanking/cod
 
@@ -81,33 +85,24 @@ async function start() {
   }
 
   // --- Simple email test route ---
+  
   app.get('/__email_test', async (req, res) => {
-    try {
-      const transporter = getTransporter();
-      const verified = await transporter.verify();
-      console.log('SMTP verified ->', verified);
+  try {
+    const transporter = getTransporter();
 
-      const to = process.env.SMTP_TEST_TO || process.env.SMTP_USER;
-      const info = await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to,
-        subject: 'NewPlant — test email',
-        text: 'This is a test email from NewPlant. If you received this, SMTP works.',
-        html: '<b>This is a test email from NewPlant. If you received this, SMTP works.</b>'
-      });
+    const info = await transporter.sendMail({
+      from: "onboarding@resend.dev",
+      to: "rishav550555@gmail.com",
+      subject: "SMTP Test — Resend Working!",
+      html: "<b>Email working successfully 🎉</b>"
+    });
 
-      console.log('sendMail info ->', info);
-      return res.json({ ok: true, verified, info });
-    } catch (err) {
-      console.error('Email test error ->', err);
-      return res.status(500).json({
-        ok: false,
-        message: err && err.message ? err.message : 'Unknown error',
-        code: err && err.code ? err.code : undefined,
-        stack: (process.env.NODE_ENV === 'development') ? err.stack : undefined
-      });
-    }
-  });
+    res.json({ success: true, info });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 
   // Signup (updated: saves user, returns token and tries to send welcome/OTP email)
   app.post('/api/signup', async (req, res) => {
