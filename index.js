@@ -54,6 +54,10 @@ async function start() {
   if (!MONGO_URI) {
     console.warn('Warning: MONGO_URI not set. Set environment variable to connect to MongoDB.');
   }
+  // HEALTHCHECK ROUTE
+  app.get("/api/health", (req, res) => {
+    res.json({ success: true, message: "Backend OK" });
+  });
 
   try {
     if (MONGO_URI) await mongoose.connect(MONGO_URI, { autoIndex: true });
