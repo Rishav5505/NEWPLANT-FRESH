@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ece6d6"/>
+      <stop offset="1" stop-color="#dcd3bd"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="1000" fill="url(#g)"/>
+  <path d="M400 640V420" stroke="#16301f" stroke-width="10" stroke-linecap="round" opacity=".55"/>
+  <path d="M400 500c0-90 63-153 153-153 0 90-63 153-153 153Z" fill="#8fb58a"/>
+  <path d="M400 555c0-72-54-126-126-126 0 72 54 126 126 126Z" fill="#c2603a" opacity=".85"/>
+  <path d="M320 640h160l-18 110H338Z" fill="#16301f" opacity=".18"/>
+  <text x="400" y="840" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="44" fill="#16301f" opacity=".7">Photo coming soon</text>
+</svg>

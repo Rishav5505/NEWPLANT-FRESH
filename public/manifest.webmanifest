@@ -1,0 +1,20 @@
+{
+  "name": "JeevaLeaf — Plant studio",
+  "short_name": "JeevaLeaf",
+  "description": "Healthy plants, care guides and watering reminders.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f1e8",
+  "theme_color": "#16301f",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "My Garden", "url": "/garden" },
+    { "name": "Track order", "url": "/track" },
+    { "name": "Shop", "url": "/shop" }
+  ]
+}

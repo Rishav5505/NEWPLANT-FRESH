@@ -12,6 +12,10 @@ const CSV_PATHS = {
   outdoor: path.join(__dirname, '../../Datasets/outdoor_plants.csv')
 };
 
+// Scraped names look like "Buy X online from Nurserylive at lowest price." — keep just "X".
+const cleanName = (name = '') =>
+  String(name).replace(/^\s*buy\s+/i, '').replace(/\s+online from .*$/i, '').replace(/\s+/g, ' ').trim();
+
 // Store for debouncing file changes
 let syncTimeouts = {};
 let watchers = {};
@@ -93,14 +97,36 @@ async function syncCSVToDatabase(category = 'indoor') {
         })
         .on('end', async () => {
           try {
-            // Clear existing plants from CSV for this category
-            await Plant.deleteMany({ category: category, syncedFrom: 'csv' });
-            
-            // Insert new plants from CSV
-            if (plants.length > 0) {
-              await Plant.insertMany(plants);
-              console.log(`✅ Synced ${plants.length} ${category} plants from CSV to database`);
+            // Upsert by (category, csvId) so product _ids stay stable across restarts —
+            // carts, wishlists, reviews and order links all reference them.
+            const seen = new Map();
+            for (const p of plants) seen.set(p.csvId, p);
+            const unique = [...seen.values()];
+            if (unique.length > 0) {
+              await Plant.bulkWrite(
+                unique.map((p) => ({
+                  updateOne: {
+                    filter: { category, csvId: p.csvId },
+                    update: {
+                      $set: { name: cleanName(p.name), salePrice: p.salePrice, oldPrice: p.oldPrice, description: p.description, imageUrl: p.imageUrl, syncedFrom: 'csv' },
+                      $setOnInsert: { category, csvId: p.csvId },
+                    },
+                    upsert: true,
+                  },
+                })),
+                { ordered: false }
+              );
+              // Remove rows that disappeared from the CSV, plus duplicates left by the old delete-and-reinsert sync.
+              const keep = await Plant.aggregate([
+                { $match: { category, syncedFrom: 'csv' } },
+                { $sort: { createdAt: 1 } },
+                { $group: { _id: '$csvId', id: { $first: '$_id' } } },
+              ]);
+              const keepIds = keep.filter((k) => seen.has(k._id)).map((k) => k.id);
+              await Plant.deleteMany({ category, syncedFrom: 'csv', _id: { $nin: keepIds } });
+              console.log(`✅ Synced ${unique.length} ${category} plants from CSV to database`);
             }
+            plants.length = unique.length;
             
             resolve({ 
               success: true, 

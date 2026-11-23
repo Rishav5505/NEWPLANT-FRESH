@@ -39,7 +39,19 @@ const UserSchema = new mongoose.Schema({
   paymentMethods: { type: [PaymentSchema], default: [] },
   defaultPaymentId: { type: String, default: null },
   walletBalance: { type: Number, default: 0 },
-  twoFAEnabled: { type: Boolean, default: false }
+  walletTransactions: {
+    type: [{ amount: Number, note: String, order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order' }, createdAt: { type: Date, default: Date.now } }],
+    default: []
+  },
+  wishlist: {
+    type: [{ id: String, name: String, price: Number, image: String, category: String, _id: false }],
+    default: []
+  },
+  twoFAEnabled: { type: Boolean, default: false },
+  referralCode: { type: String, unique: true, sparse: true, uppercase: true },
+  referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  reminderEmails: { type: Boolean, default: true },
+  lastReminderAt: { type: Date, default: null }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);

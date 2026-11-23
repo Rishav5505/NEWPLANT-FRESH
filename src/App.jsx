@@ -1,274 +1,120 @@
-import React, { useState } from "react";
-import HeroSection from "./components/HeroSection";
-import Navbar from "./components/Navbar";
-import TopSelling from "./components/TopSelling";
-import Reviews from "./components/Reviews";
-import Features from "./components/Features";
-import Gallery from "./components/Gallery";
-import CTA from "./components/CTA";
-import Footer from "./components/Footer";
-import Terms from "./components/Terms";
-import PrivacyPolicy from "./components/PrivacyPolicy";
-import PaymentTest from "./components/PaymentTest";
-import AdminDashboard from "./components/AdminDashboard";
-import OrderDetail from './pages/OrderDetail';
-import MessageDetail from './pages/MessageDetail';
-import UserDetail from './pages/UserDetail';
-import Profile from './pages/Profile';
-import { Routes, Route } from 'react-router-dom';
-import Contact from "./components/Contact";
-import Menu from "./components/Menu";
-import Cart from "./components/Cart";
-import Shop from "./components/Shop";
-import About from "./components/About";
-import Checkout from "./components/Checkout";
-import IndorePlants from "./components/IndorePlants";
-import FloweringPlants from "./components/FloweringPlants";
-import OutdoorPlants from "./components/OutdoorPlants";
-import PlantersAndPots from "./components/PlantersAndPots";
-import PlantCareKits from "./components/PlantCareKits";
-import CareGuides from "./components/CareGuides";
-import MyOrders from "./components/MyOrders";
-import Wishlist from "./components/Wishlist";
-import Wallet from "./components/Wallet";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
+import Header from "./components/layout/Header";
+import Footer from "./components/layout/Footer";
+import CartDrawer from "./components/layout/CartDrawer";
+import AuthModal from "./components/layout/AuthModal";
+import SearchOverlay from "./components/layout/SearchOverlay";
 import ErrorBoundary from "./components/ErrorBoundary";
+import BackToTop from "./components/BackToTop";
+import WelcomePopup from "./components/WelcomePopup";
+import WhatsAppButton from "./components/WhatsAppButton";
+import MobileTabBar from "./components/layout/MobileTabBar";
+import { CompareTray } from "./context/CompareContext";
+import Home from "./pages/Home";
 
-const App = () => {
-  const [currentPage, setCurrentPage] = useState("home");
-  const [showCart, setShowCart] = useState(false);
-  const [cartItems, setCartItems] = useState([]);
-  const [paymentOrderId, setPaymentOrderId] = useState(null);
+const Shop = lazy(() => import("./pages/Shop"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const PlantFinder = lazy(() => import("./pages/PlantFinder"));
+const CareLibrary = lazy(() => import("./pages/CareLibrary"));
+const Garden = lazy(() => import("./pages/Garden"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const Payment = lazy(() => import("./pages/Payment"));
+const OrderSuccess = lazy(() => import("./pages/OrderSuccess"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+const Legal = lazy(() => import("./pages/Legal"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Track = lazy(() => import("./pages/Track"));
+const Studio = lazy(() => import("./pages/Studio"));
+const Compare = lazy(() => import("./pages/Compare"));
+const SharedWishlist = lazy(() => import("./pages/SharedWishlist"));
+const Account = lazy(() => import("./pages/account/Account"));
+const Orders = lazy(() => import("./pages/account/Orders"));
+const Wishlist = lazy(() => import("./pages/account/Wishlist"));
+const WalletPage = lazy(() => import("./pages/account/Wallet"));
+const AdminRoute = lazy(() => import("./pages/admin/AdminRoute"));
 
-  const addToCart = (product) => {
-    setCartItems((prev) => {
-      const existing = prev.find((p) => p.id === product.id);
-      if (existing) {
-        return prev.map((p) => (p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p));
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
+function PageFallback() {
+  return (
+    <div className="grid min-h-[60vh] place-items-center">
+      <div className="size-10 animate-spin rounded-full border-2 border-line border-t-moss" />
+    </div>
+  );
+}
+
+export default function App() {
+  const [searchOpen, setSearchOpen] = useState(false);
+  const { pathname } = useLocation();
+  const isAdmin = pathname.startsWith("/admin");
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
       }
-      return [...prev, { ...product, quantity: 1, currency: product.currency || 'USD' }];
-    });
-    setShowCart(true);
-  };
-
-  const updateQuantity = (id, quantity) => {
-    setCartItems((prev) => prev.flatMap((p) => (p.id === id ? (quantity > 0 ? [{ ...p, quantity }] : []) : [p])));
-  };
-
-  const removeItem = (id) => {
-    setCartItems((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const cartCount = cartItems.reduce((s, it) => s + it.quantity, 0);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <ErrorBoundary>
-      <div className="w-full bg-[#071018] text-white overflow-x-hidden">
-      {/* Gradient Background */}
-      <div 
-        className="fixed inset-0 -z-10"
-        style={{
-          background: "radial-gradient(circle at 20% 50%, rgba(34, 197, 94, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(34, 197, 94, 0.05) 0%, transparent 50%)",
-        }}
-      />
-
-      {/* All Modals and Floating Buttons */}
-      <Menu />
-
-      {/* Main Content */}
-      <Navbar setCurrentPage={setCurrentPage} setShowCart={setShowCart} cartCount={cartCount} addToCart={addToCart} />
-      <Cart
-        showCart={showCart}
-        setShowCart={setShowCart}
-        cartItems={cartItems}
-        updateQuantity={updateQuantity}
-        removeItem={removeItem}
-        setCurrentPage={setCurrentPage}
-        setPaymentOrderId={setPaymentOrderId}
-      />
-
-      {/* Route-aware detail pages (orders/messages/users) */}
-      <Routes>
-        <Route path="/orders/:orderId" element={<OrderDetail />} />
-        <Route path="/messages/:messageId" element={<MessageDetail />} />
-        <Route path="/users/:userId" element={<UserDetail />} />
-        {/* Fallback route to avoid "No routes matched" warnings for app-managed routes */}
-        <Route path="*" element={<></>} />
-      </Routes>
-
-      {currentPage === 'payment' && (
-        <>
-          <PaymentTest orderId={paymentOrderId} setCurrentPage={setCurrentPage} onPaymentSuccess={() => {
-            // clear paymentOrderId and empty cart after successful payment
-            setPaymentOrderId(null);
-            setCartItems([]);
-          }} />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-      {currentPage === 'admin' && (
-        <>
-          <AdminDashboard setCurrentPage={setCurrentPage} />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-      
-      {currentPage === "home" && (
-        <>
-          <HeroSection setCurrentPage={setCurrentPage} />
-          <section className="revealable"><TopSelling addToCart={addToCart} /></section>
-          <section className="revealable"><Gallery setCurrentPage={setCurrentPage} /></section>
-          <section className="revealable"><Features /></section>
-          <section className="revealable"><Reviews /></section>
-          <section className="revealable"><CTA /></section>
-          <section className="revealable"><Footer setCurrentPage={setCurrentPage} /></section>
-        </>
-      )}
-
-      {/* Reveal observer for sections */}
-      <script dangerouslySetInnerHTML={{ __html: `
-        (function(){
-          try{
-            const obs = new IntersectionObserver((entries)=>{
-              entries.forEach(e=>{
-                if(e.isIntersecting) e.target.classList.add('revealed');
-              });
-            },{ threshold: 0.18 });
-            document.querySelectorAll('.revealable').forEach(el=>obs.observe(el));
-          }catch(e){}
-        })();
-      ` }} />
-
-      {currentPage === "shop" && (
-        <>
-          <Gallery setCurrentPage={setCurrentPage} />
-          <Features />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "about" && (
-        <>
-          <About />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "contact" && (
-        <>
-          <Contact />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-      {currentPage === "checkout" && (
-        <>
-          <Checkout 
-            cartItems={cartItems}
-            setCurrentPage={setCurrentPage}
-            setPaymentOrderId={setPaymentOrderId}
-            removeItem={removeItem}
-          />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "indoreplants" && (
-        <>
-          <IndorePlants addToCart={addToCart} setCurrentPage={setCurrentPage} />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "floweringplants" && (
-        <>
-          <FloweringPlants addToCart={addToCart} />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "outdoorplants" && (
-        <>
-          <OutdoorPlants addToCart={addToCart} />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "plantersandpots" && (
-        <>
-          <PlantersAndPots addToCart={addToCart} />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "plantcarekits" && (
-        <>
-          <PlantCareKits addToCart={addToCart} />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "careguides" && (
-        <>
-          <CareGuides />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "myorders" && (
-        <>
-          <MyOrders setCurrentPage={setCurrentPage} />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "wishlist" && (
-        <>
-          <Wishlist setCurrentPage={setCurrentPage} />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "wallet" && (
-        <>
-          <Wallet setCurrentPage={setCurrentPage} />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === "profile" && (
-        <>
-          <Profile setCurrentPage={setCurrentPage} />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage !== "home" && currentPage !== "contact" && currentPage !== "shop" && currentPage !== "about" && currentPage !== "checkout" && currentPage !== "indoreplants" && currentPage !== "floweringplants" && currentPage !== "outdoorplants" && currentPage !== "plantersandpots" && currentPage !== "plantcarekits" && currentPage !== "careguides" && currentPage !== "myorders" && currentPage !== "wishlist" && currentPage !== "wallet" && currentPage !== "profile" && currentPage !== "admin" && (
-        <>
-          <HeroSection setCurrentPage={setCurrentPage} />
-          <section className="revealable"><TopSelling addToCart={addToCart} /></section>
-          <section className="revealable"><Gallery setCurrentPage={setCurrentPage} /></section>
-          <section className="revealable"><Features /></section>
-          <section className="revealable"><Reviews /></section>
-          <section className="revealable"><CTA /></section>
-          <section className="revealable"><Footer setCurrentPage={setCurrentPage} /></section>
-        </>
-      )}
-
-      {currentPage === 'terms' && (
-        <>
-          <Terms />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-
-      {currentPage === 'privacy' && (
-        <>
-          <PrivacyPolicy />
-          <Footer setCurrentPage={setCurrentPage} />
-        </>
-      )}
-      </div>
+      <ScrollToTop />
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-full focus:bg-forest focus:px-4 focus:py-2 focus:text-on-forest">
+        Skip to content
+      </a>
+      <Header onSearch={() => setSearchOpen(true)} />
+      <main id="main" className="min-h-[70vh]">
+        <Suspense fallback={<PageFallback />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/shop/:category" element={<Shop />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/plant-finder" element={<PlantFinder />} />
+            <Route path="/care" element={<CareLibrary />} />
+            <Route path="/garden" element={<Garden />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/payment/:orderId" element={<Payment />} />
+            <Route path="/order-success/:orderId" element={<OrderSuccess />} />
+            <Route path="/track" element={<Track />} />
+            <Route path="/studio" element={<Studio />} />
+            <Route path="/compare" element={<Compare />} />
+            <Route path="/wishlist/shared" element={<SharedWishlist />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/terms" element={<Legal kind="terms" />} />
+            <Route path="/privacy" element={<Legal kind="privacy" />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/account/orders" element={<Orders />} />
+            <Route path="/account/wishlist" element={<Wishlist />} />
+            <Route path="/account/wallet" element={<WalletPage />} />
+            <Route path="/admin/*" element={<AdminRoute />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </main>
+      {!isAdmin && <Footer />}
+      {/* room for the mobile tab bar */}
+      <div className="h-16 md:hidden" aria-hidden="true" />
+      <MobileTabBar onSearch={() => setSearchOpen(true)} />
+      <CompareTray />
+      {!isAdmin && <BackToTop />}
+      {!isAdmin && <WhatsAppButton />}
+      <WelcomePopup />
+      <CartDrawer />
+      <AuthModal />
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </ErrorBoundary>
   );
-};
-
-export default App;
+}

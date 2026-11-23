@@ -104,7 +104,6 @@ export async function generateInvoicePDF(order) {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
     // convert px to mm roughly: 1px = 0.264583 mm at 96dpi. But we will scale by width ratio
     const imgProps = { width: canvas.width, height: canvas.height };
     const pdfWidth = pageWidth - 20; // margin

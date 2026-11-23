@@ -17,6 +17,8 @@ const Review = require('./models/Review');
 const Otp = require('./models/Otp');
 const { syncCSVToDatabase, resyncCSV, watchCSVFile, stopWatchingCSVFile, CSV_PATHS } = require('./utils/csvSync');
 const { getStatusEmailHTML } = require('./utils/emailTemplates');
+const { registerFeatureRoutes, priceOrder, creditCashback, creditReferral, releaseOrder, addOrderToGarden, notifyBackInStock } = require('./routes/features');
+const Coupon = require('./models/Coupon');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -200,8 +202,8 @@ function generateInvoiceBuffer(order) {
 
       // Footer: returns policy and contact
       doc.moveTo(left, doc.page.height - 120).lineTo(right, doc.page.height - 120).stroke('#eee');
-      doc.fontSize(7.5).fillColor('#444').text('Returns Policy: At Flipkart we try to deliver perfectly each and every time. But in the off-chance that you need to return the item, please do so with the original Brand box/price tag, original packing and invoice. The goods sold are intended for end user consumption and not for resale.', left + 10, doc.page.height - 110, { width: usableWidth - 20 });
-      doc.fontSize(7.5).fillColor('#666').text('Contact Flipkart: 044-45614700 | 044-67415800 | www.flipkart.com/helpcentre', left + 10, doc.page.height - 50, { width: usableWidth - 20 });
+      doc.fontSize(7.5).fillColor('#444').text('Returns Policy: At JeevaLeaf we try to deliver perfectly every time. But in the off-chance that you need to return the item, please do so with the original Brand box/price tag, original packing and invoice. The goods sold are intended for end user consumption and not for resale.', left + 10, doc.page.height - 110, { width: usableWidth - 20 });
+      doc.fontSize(7.5).fillColor('#666').text('Contact JeevaLeaf: support@jeevaleaf.com', left + 10, doc.page.height - 50, { width: usableWidth - 20 });
 
       doc.end();
     } catch (err) {
@@ -211,7 +213,20 @@ function generateInvoiceBuffer(order) {
 }
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+// Expired or invalid sessions on account routes should be a clean 401 (not a 500),
+// so the app can sign the user out and ask them to log in again.
+app.use(['/api/me', '/api/my-orders', '/api/orders'], (req, res, next) => {
+  const token = (req.headers.authorization || '').split(' ')[1];
+  if (!token || token === 'null' || token === 'undefined') return res.status(401).json({ success: false, message: 'Please sign in to continue' });
+  try {
+    jwt.verify(token, process.env.JWT_SECRET || 'change-me-in-prod');
+    next();
+  } catch {
+    return res.status(401).json({ success: false, message: 'Session expired — please sign in again' });
+  }
+});
 
 // Payment gateway removed: using simple mock flows for card/upi/netbanking/cod
 
@@ -331,7 +346,7 @@ async function start() {
           success: true, 
           message: '⚠️ OTP generated (email delivery failed - check server logs)', 
           email,
-          debugOtp: process.env.NODE_ENV !== 'production' ? otp : undefined
+          debugOtp: process.env.EXPOSE_DEBUG_OTP === 'true' ? otp : undefined
         });
       }
 
@@ -423,7 +438,7 @@ async function start() {
           success: true, 
           message: '⚠️ OTP generated (email delivery failed - check server logs)', 
           email,
-          debugOtp: process.env.NODE_ENV !== 'production' ? otp : undefined
+          debugOtp: process.env.EXPOSE_DEBUG_OTP === 'true' ? otp : undefined
         });
       }
 
@@ -616,10 +631,8 @@ async function start() {
       if (!user) return res.status(401).json({ success: false, message: 'Invalid token' });
 
       // Only allow updating specific fields
-      const allowed = [
-        'name', 'email', 'phone', 'profilePhoto', 'addresses', 'defaultAddressId',
-        'paymentMethods', 'defaultPaymentId', 'walletBalance', 'twoFAEnabled'
-      ];
+      // walletBalance only changes server-side (cashback/refunds); card data is never stored.
+      const allowed = ['name', 'phone', 'profilePhoto', 'addresses', 'defaultAddressId', 'twoFAEnabled', 'reminderEmails'];
 
       for (let key of allowed) {
         if (req.body[key] !== undefined) {
@@ -629,6 +642,7 @@ async function start() {
 
       // handle password change separately
       if (req.body.password) {
+        if (String(req.body.password).length < 6) return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
         const hashed = await bcrypt.hash(req.body.password, 10);
         user.password = hashed;
       }
@@ -653,55 +667,80 @@ async function start() {
       const user = await User.findById(data.id);
       if (!user) return res.status(401).json({ success: false, message: 'Invalid token' });
 
-      const { items, paymentMethod } = req.body;
-      const { deliveryName, deliveryPhone, deliveryEmail, deliveryAddress, deliveryLocation } = req.body;
-      console.log('📦 New order - Email:', deliveryEmail);
-      if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, message: 'No items provided' });
-
-      // sanitize incoming items to expected schema
-      const sanitizedItems = items.map((it) => ({
-        productId: it.productId !== undefined ? it.productId : (it.id || null),
-        name: it.name || '',
-        price: Number(it.price) || 0,
-        quantity: Number(it.quantity) || 1,
-        emoji: it.emoji || '',
-        image: it.image || '',
-        currency: it.currency || ''
-      }));
-
-      const subtotal = sanitizedItems.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.quantity) || 0), 0);
-      const tax = +(subtotal * 0.1).toFixed(2);
-      const shipping = sanitizedItems.length > 0 ? 5 : 0;
-      const total = +(subtotal + tax + shipping).toFixed(2);
-
-      // determine initial payment and order status
-      let paymentStatus = 'pending';
-      let status = 'pending';
-      const pm = (paymentMethod || 'cod').toLowerCase();
-      // Cash-on-delivery: payment is pending but order moves to processing immediately
-      if (pm === 'cod') {
-        paymentStatus = 'pending';
-        status = 'processing';
+      const { items, paymentMethod, couponCode, useWallet, giftMessage, giftWrap, preferredDate, preferredSlot } = req.body;
+      // Optional delivery preference: a date 2–21 days out and a time slot
+      let prefDate = '';
+      if (preferredDate) {
+        const d = new Date(`${preferredDate}T00:00:00+05:30`);
+        const days = (d.getTime() - Date.now()) / 86400000;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(preferredDate) || isNaN(days) || days < 1 || days > 21) return res.status(400).json({ success: false, message: 'Please choose a delivery date between 2 and 21 days from today' });
+        prefDate = preferredDate;
       }
-      // other methods start as pending payment and pending processing
+      const prefSlot = ['morning', 'afternoon', 'evening'].includes(preferredSlot) ? preferredSlot : '';
+      const { deliveryName, deliveryPhone, deliveryEmail, deliveryAddress, deliveryLocation } = req.body;
+      const pm = String(paymentMethod || 'cod').toLowerCase();
+      if (!['cod', 'upi', 'card', 'netbanking'].includes(pm)) return res.status(400).json({ success: false, message: 'Invalid payment method' });
+      if (!deliveryName || !deliveryPhone || !deliveryAddress) return res.status(400).json({ success: false, message: 'Please fill in your delivery details' });
+
+      // Prices, discounts and totals are computed from the catalogue, never from the client.
+      let priced;
+      try {
+        priced = await priceOrder({ user, items, couponCode, useWallet, giftWrap: !!giftWrap });
+      } catch (e) {
+        return res.status(e.status || 500).json({ success: false, message: e.message });
+      }
+
+      // Reserve the coupon use and wallet credits atomically.
+      if (priced.coupon && !priced.coupon.isReferral) {
+        const ok = await Coupon.updateOne(
+          { _id: priced.coupon._id, $or: [{ maxUses: null }, { $expr: { $lt: ['$usedCount', '$maxUses'] } }] },
+          { $inc: { usedCount: 1 } }
+        );
+        if (!ok.modifiedCount) return res.status(400).json({ success: false, message: 'This coupon has reached its usage limit' });
+      }
+      if (priced.walletUsed > 0) {
+        const ok = await User.updateOne({ _id: user._id, walletBalance: { $gte: priced.walletUsed } }, { $inc: { walletBalance: -priced.walletUsed } });
+        if (!ok.modifiedCount) return res.status(400).json({ success: false, message: 'Wallet balance changed, please try again' });
+      }
+
+      const fullyPaidByWallet = priced.total === 0;
+      const paymentStatus = fullyPaidByWallet ? 'paid' : 'pending';
+      const status = pm === 'cod' || fullyPaidByWallet ? 'processing' : 'pending';
 
       const order = new Order({
         user: user._id,
-        items: sanitizedItems,
-        subtotal,
-        tax,
-        shipping,
-        total,
+        items: priced.lines,
+        subtotal: priced.subtotal,
+        discount: priced.discount,
+        couponCode: priced.coupon ? priced.coupon.code : null,
+        referrer: priced.coupon && priced.coupon.isReferral ? priced.coupon.referrer : null,
+        walletUsed: priced.walletUsed,
+        tax: priced.tax,
+        shipping: priced.shipping,
+        total: priced.total,
         paymentMethod: pm,
         paymentStatus,
         status,
-        deliveryName: deliveryName || '',
-        deliveryPhone: deliveryPhone || '',
-        deliveryEmail: deliveryEmail || '',
-        deliveryAddress: deliveryAddress || '',
-        deliveryLocation: deliveryLocation || ''
+        statusHistory: [{ status: 'pending' }].concat(status === 'processing' ? [{ status: 'processing' }] : []),
+        giftMessage: String(giftMessage || '').slice(0, 200),
+        giftWrap: priced.giftWrapFee > 0,
+        preferredDate: prefDate,
+        preferredSlot: prefSlot,
+        giftWrapFee: priced.giftWrapFee,
+        deliveryName: String(deliveryName || '').slice(0, 120),
+        deliveryPhone: String(deliveryPhone || '').slice(0, 20),
+        deliveryEmail: String(deliveryEmail || user.email || '').slice(0, 200),
+        deliveryAddress: String(deliveryAddress || '').slice(0, 500),
+        deliveryLocation: String(deliveryLocation || '').slice(0, 200)
       });
       await order.save();
+
+      if (priced.walletUsed > 0) {
+        await User.updateOne({ _id: user._id }, { $push: { walletTransactions: { amount: -priced.walletUsed, note: `Used on order #${String(order._id).slice(-8).toUpperCase()}`, order: order._id } } });
+      }
+      for (const l of priced.lines) {
+        await Plant.updateOne({ _id: l.productId, stockManaged: true }, { $inc: { stock: -l.quantity } });
+      }
 
       // Send order confirmation email
       if (transporter && order.deliveryEmail) {
@@ -757,7 +796,10 @@ async function start() {
                       </table>
                       <div style="background: #f9f9f9; padding: 20px; margin-top: 20px; border-radius: 4px;">
                         <p style="margin: 8px 0; text-align: right;"><strong>Subtotal:</strong> ₹${order.subtotal.toFixed(2)}</p>
-                        <p style="margin: 8px 0; text-align: right;"><strong>Tax (10%):</strong> ₹${order.tax.toFixed(2)}</p>
+                        <p style="margin: 8px 0; text-align: right;"><strong>GST (5%):</strong> ₹${order.tax.toFixed(2)}</p>
+                        ${order.discount ? `<p style="margin: 8px 0; text-align: right;"><strong>Discount${order.couponCode ? ' (' + order.couponCode + ')' : ''}:</strong> -₹${order.discount.toFixed(2)}</p>` : ''}
+                        ${order.walletUsed ? `<p style="margin: 8px 0; text-align: right;"><strong>Wallet credits:</strong> -₹${order.walletUsed.toFixed(2)}</p>` : ''}
+                        ${order.giftMessage ? `<p style="margin: 8px 0; text-align: right;"><strong>Gift message:</strong> ${order.giftMessage.replace(/[<>&"]/g, '')}</p>` : ''}
                         <p style="margin: 8px 0; text-align: right;"><strong>Shipping:</strong> ₹${order.shipping.toFixed(2)}</p>
                         <p style="margin: 15px 0 0 0; text-align: right; font-size: 18px; color: #4CAF50;"><strong>Total: ₹${order.total.toFixed(2)}</strong></p>
                       </div>
@@ -936,9 +978,11 @@ async function start() {
   // Get single plant by ID
   app.get('/api/plants/detail/:id', async (req, res) => {
     try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(404).json({ success: false, message: 'Plant not found' });
       const plant = await Plant.findById(req.params.id);
       if (!plant) return res.status(404).json({ success: false, message: 'Plant not found' });
-      return res.json({ success: true, plant });
+      const agg = await Review.aggregate([{ $match: { productId: String(plant._id) } }, { $group: { _id: null, avg: { $avg: '$rating' }, n: { $sum: 1 } } }]);
+      return res.json({ success: true, plant: { ...plant.toObject(), rating: agg[0] ? +agg[0].avg.toFixed(1) : null, reviewCount: agg[0] ? agg[0].n : 0 } });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ success: false, message: 'Server error' });
@@ -948,13 +992,14 @@ async function start() {
   // Search plants by name
   app.get('/api/plants/search/:query', async (req, res) => {
     try {
-      const { query } = req.params;
+      const query = String(req.params.query || '').slice(0, 60);
+      const safe = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const plants = await Plant.find({
         $or: [
-          { name: { $regex: query, $options: 'i' } },
-          { description: { $regex: query, $options: 'i' } }
+          { name: { $regex: safe, $options: 'i' } },
+          { description: { $regex: safe, $options: 'i' } }
         ]
-      }).limit(20);
+      }).limit(40);
       return res.json({ success: true, plants, query });
     } catch (err) {
       console.error(err);
@@ -982,6 +1027,8 @@ async function start() {
     }
   }
 
+  registerFeatureRoutes(app, { JWT_SECRET, requireAdmin, getTransporter: () => transporter, mailFrom: SMTP_FROM, siteUrl: process.env.SITE_URL || process.env.FRONTEND_URL || '' });
+
   // Create admin user via secret (useful for first-time setup)
   app.post('/api/admin/make-admin', async (req, res) => {
     try {
@@ -1002,7 +1049,7 @@ async function start() {
 
   app.get('/api/admin/orders', requireAdmin, async (req, res) => {
     try {
-      const orders = await Order.find().populate('user', 'name email role').sort({ createdAt: -1 }).limit(200);
+      const orders = await Order.find().populate('user', 'name email role').sort({ createdAt: -1 }).limit(1000);
       return res.json({ success: true, orders });
     } catch (err) {
       console.error(err);
@@ -1078,7 +1125,18 @@ async function start() {
       if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
       
       const oldStatus = order.status;
-      if (status) order.status = status;
+      if (status && status !== oldStatus) {
+        if (String(oldStatus).toLowerCase() === 'cancelled') return res.status(400).json({ success: false, message: 'Cancelled orders cannot be reopened' });
+        order.status = status;
+        order.statusHistory.push({ status });
+        if (status === 'cancelled') await releaseOrder(order);
+        if (status === 'delivered') {
+          if (order.paymentMethod === 'cod') order.paymentStatus = 'paid';
+          await creditCashback(order);
+          await creditReferral(order);
+          addOrderToGarden(order).catch((e) => console.error('Garden auto-add failed:', e.message));
+        }
+      }
       if (paymentStatus) order.paymentStatus = paymentStatus;
       await order.save();
 
@@ -1139,7 +1197,7 @@ async function start() {
 
   app.get('/api/admin/users', requireAdmin, async (req, res) => {
     try {
-      const users = await User.find().select('-password').sort({ createdAt: -1 }).limit(200);
+      const users = await User.find().select('-password -walletTransactions -wishlist -addresses').sort({ createdAt: -1 }).limit(1000);
       return res.json({ success: true, users });
     } catch (err) {
       console.error(err);
@@ -1204,8 +1262,22 @@ async function start() {
       
       if (!plant) return res.status(404).json({ success: false, message: 'Plant not found' });
 
-      // Only allow updating manual plants, not CSV synced ones
+      // Stock can be managed for any plant; once set, it is enforced at checkout.
+      if (req.body.stock !== undefined && req.body.stock !== null && req.body.stock !== '') {
+        const wasOut = plant.stockManaged && plant.stock <= 0;
+        plant.stock = Math.max(0, parseInt(req.body.stock, 10) || 0);
+        plant.stockManaged = true;
+        if (wasOut && plant.stock > 0) {
+          notifyBackInStock(plant, () => transporter, SMTP_FROM, process.env.SITE_URL || process.env.FRONTEND_URL || '').catch((e) => console.error('Stock alert error:', e.message));
+        }
+      }
+
+      // Other fields: only manual plants, not CSV synced ones
       if (plant.syncedFrom === 'csv') {
+        if (req.body.stock !== undefined) {
+          await plant.save();
+          return res.json({ success: true, message: 'Stock updated', plant });
+        }
         return res.status(403).json({ success: false, message: 'Cannot edit CSV synced plants. Update the CSV file and resync.' });
       }
 
@@ -1310,9 +1382,15 @@ async function start() {
       if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
       if (order.user.toString() !== user._id.toString()) return res.status(403).json({ success: false, message: 'Forbidden' });
 
-      order.paymentStatus = 'paid';
-      order.status = 'processing';
-      await order.save();
+      if (String(order.status).toLowerCase() === 'cancelled') return res.status(400).json({ success: false, message: 'This order was cancelled' });
+      if (order.paymentStatus !== 'paid') {
+        order.paymentStatus = 'paid';
+        if (order.status === 'pending') {
+          order.status = 'processing';
+          order.statusHistory.push({ status: 'processing' });
+        }
+        await order.save();
+      }
 
       return res.json({ success: true, orderId: order._id, order });
     } catch (err) {
